@@ -3,10 +3,8 @@ function Add-EmbeddedSwEquationApiType {
 
     $source = @'
 using System;
-using System.Collections.Generic;
 using System.IO;
 using SolidWorks.Interop.sldworks;
-using SolidWorks.Interop.swconst;
 
 namespace Q347F
 {
@@ -41,43 +39,92 @@ namespace Q347F
         public static int ImportOrUpdateEquations(object modelObject, string equationFile)
         {
             ModelDoc2 model = AsModel(modelObject);
-            if (!File.Exists(equationFile)) throw new FileNotFoundException("Equation file not found", equationFile);
+            if (!File.Exists(equationFile))
+                throw new FileNotFoundException("Equation file not found", equationFile);
+
             EquationMgr mgr = model.GetEquationMgr();
             if (mgr == null) throw new InvalidOperationException("GetEquationMgr returned null.");
 
+            // 00_SKELETON is intentionally a normal single-configuration part.
+            // SOLIDWORKS API documentation requires Add2 for a part without
+            // multiple configurations. Add3 can return -1 on a new one-config part.
             mgr.AutomaticSolveOrder = true;
             mgr.AutomaticRebuild = false;
-            int allCfg = (int)swInConfigurationOpts_e.swAllConfiguration;
 
-            foreach (string raw in File.ReadAllLines(equationFile))
+            string[] lines = File.ReadAllLines(equationFile);
+            int sourceLine = 0;
+            foreach (string raw in lines)
             {
+                sourceLine++;
                 string line = raw.Trim();
                 if (line.Length == 0 || line.StartsWith("#") || line.StartsWith("//")) continue;
+
                 string name = ExtractLhsName(line);
-                if (name.Length == 0) continue;
+                if (name.Length == 0)
+                    throw new InvalidOperationException(
+                        "Equation source line " + sourceLine + " has no valid quoted left-hand name: " + line);
+
                 int idx = FindEquationIndex(mgr, name);
-                int result;
                 if (idx >= 0)
-                    result = mgr.SetEquationAndConfigurationOption(idx, line, allCfg, null);
+                {
+                    try
+                    {
+                        mgr.set_Equation(idx, line);
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new InvalidOperationException(
+                            "Failed to update equation at source line " + sourceLine +
+                            ", name=" + name + ", equation=" + line +
+                            ", EquationMgr.Status=" + mgr.Status + ". " + ex.Message, ex);
+                    }
+
+                    if (mgr.Status < 0)
+                        throw new InvalidOperationException(
+                            "Equation update returned error at source line " + sourceLine +
+                            ", name=" + name + ", equation=" + line +
+                            ", EquationMgr.Status=" + mgr.Status);
+                }
                 else
-                    result = mgr.Add3(-1, line, true, allCfg, null);
-                if (result < 0) throw new InvalidOperationException("Failed to import equation: " + name);
+                {
+                    int result = mgr.Add2(-1, line, false);
+                    if (result < 0)
+                        throw new InvalidOperationException(
+                            "Add2 failed at source line " + sourceLine +
+                            ", name=" + name + ", equation=" + line +
+                            ", EquationMgr.Status=" + mgr.Status +
+                            ", EquationCount=" + mgr.GetCount());
+                }
             }
 
+            // Evaluate only after all globals exist so dependent expressions resolve together.
+            try { mgr.EvaluateAll(); }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException(
+                    "EquationMgr.EvaluateAll failed after importing " + mgr.GetCount() +
+                    " equations. Status=" + mgr.Status + ". " + ex.Message, ex);
+            }
+
+            mgr.AutomaticRebuild = true;
+            if (!model.EditRebuild3())
+                throw new InvalidOperationException("EditRebuild3 returned false after equation import.");
+
+            // Preserve the project parameter text as the external equation source when allowed.
+            // Linking is secondary to a successful in-model import: local policy may deny it.
             try
             {
                 mgr.FilePath = equationFile;
                 mgr.LinkToFile = true;
                 mgr.UpdateValuesFromExternalEquationFile();
+                try { mgr.EvaluateAll(); } catch { }
+                model.EditRebuild3();
             }
             catch
             {
-                // Keep imported globals even if a local SOLIDWORKS policy prevents external linking.
+                // Keep the already imported global variables even if external linking is unavailable.
             }
 
-            mgr.AutomaticRebuild = true;
-            try { mgr.EvaluateAll(); } catch { }
-            model.EditRebuild3();
             return mgr.GetCount();
         }
     }
