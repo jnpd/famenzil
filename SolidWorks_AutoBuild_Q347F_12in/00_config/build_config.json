@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "solidWorks": {
+    "version": "2025",
+    "installDir": "C:\\Program Files\\sw2025\\SOLIDWORKS Corp 2025\\SOLIDWORKS",
+    "exePath": "",
+    "interopSldworksDll": "",
+    "interopSwconstDll": "",
+    "autoDiscoverFallback": true
+  },
+  "templates": {
+    "partTemplatePath": ""
+  },
+  "notes": "Machine-specific paths live here. Prefer changing this JSON instead of editing PowerShell code."
+}
