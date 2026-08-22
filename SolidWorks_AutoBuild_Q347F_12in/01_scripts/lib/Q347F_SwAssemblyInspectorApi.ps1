@@ -99,6 +99,27 @@ namespace Q347F
             catch { return ""; }
         }
 
+        private static Feature FirstSubFeature(Feature feature)
+        {
+            if (feature == null) return null;
+            try { return feature.GetFirstSubFeature() as Feature; }
+            catch { return null; }
+        }
+
+        private static Feature NextSubFeature(Feature feature)
+        {
+            if (feature == null) return null;
+            try { return feature.GetNextSubFeature() as Feature; }
+            catch { return null; }
+        }
+
+        private static Feature NextFeature(Feature feature)
+        {
+            if (feature == null) return null;
+            try { return feature.GetNextFeature() as Feature; }
+            catch { return null; }
+        }
+
         private static double[] ToDoubleArray(object raw)
         {
             Array a = raw as Array;
@@ -235,7 +256,8 @@ namespace Q347F
                     {
                         try
                         {
-                            MateEntity2 e = mate.MateEntity(i);
+                            object rawEntity = mate.MateEntity(i);
+                            MateEntity2 e = rawEntity as MateEntity2;
                             if (e == null) continue;
                             RefMateEntityInfo ei = new RefMateEntityInfo();
                             ei.Index = i;
@@ -243,7 +265,8 @@ namespace Q347F
                             try { ei.EntityParams = ToDoubleArray(e.EntityParams); } catch { ei.EntityParams = new double[0]; }
                             try
                             {
-                                Component2 rc = e.ReferenceComponent;
+                                object rawComponent = e.ReferenceComponent;
+                                Component2 rc = rawComponent as Component2;
                                 if (rc != null)
                                 {
                                     try { ei.ComponentName = rc.Name2; } catch { ei.ComponentName = ""; }
@@ -266,7 +289,7 @@ namespace Q347F
         {
             int order = 0;
             Feature f = null;
-            try { f = model.FirstFeature(); } catch { }
+            try { f = model.FirstFeature() as Feature; } catch { }
             int guard = 0;
             while (f != null && guard++ < 5000)
             {
@@ -274,16 +297,15 @@ namespace Q347F
                 try { type = f.GetTypeName2(); } catch { }
                 if (String.Equals(type, "MateGroup", StringComparison.OrdinalIgnoreCase))
                 {
-                    Feature sub = null;
-                    try { sub = f.GetFirstSubFeature(); } catch { }
+                    Feature sub = FirstSubFeature(f);
                     int subGuard = 0;
                     while (sub != null && subGuard++ < 5000)
                     {
                         CollectMateFeature(sub, assemblyPath, report, ref order);
-                        try { sub = sub.GetNextSubFeature(); } catch { break; }
+                        sub = NextSubFeature(sub);
                     }
                 }
-                try { f = f.GetNextFeature(); } catch { break; }
+                f = NextFeature(f);
             }
             report.MateCount = report.Mates.Count;
         }
