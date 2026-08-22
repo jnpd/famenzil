@@ -21,14 +21,16 @@ set "RC=%ERRORLEVEL%"
 
 echo.
 if not "%RC%"=="0" (
-    echo [FAIL] Q347F S00-S03 build failed.
+    echo [FAIL] Q347F S00-S04 build failed.
     echo Keep the latest 04_logs\run_xxx folder for troubleshooting.
     echo Resume command: this BAT file with argument resume
     pause
     exit /b %RC%
 )
 
-echo [PASS] S00-S03 completed. 00_SKELETON.SLDPRT was generated.
-echo This version intentionally stops after S03.
+echo [PASS] S00-S04 completed.
+echo Generated: 02_output\00_SKELETON.SLDPRT
+echo Generated: 02_output\01_BALL.SLDPRT
+echo BALL uses current TEMP-FROZEN manufacturing dimensions for first complete CAD build.
 pause
 exit /b 0
