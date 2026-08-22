@@ -11,15 +11,29 @@
 "BALL_X_L" = -"BALL_W_X" / 2
 # S04 current CAD-draft candidate dimensions for the 12in BALL.
 # These are parametric CAD inputs, NOT automatic manufacturing-freeze dimensions.
-# φ105/φ70 follow the current interface chain; depths 30/52 and the 70x44/R8/depth27 drive slot remain CAD candidates subject to S04 validation and later manufacturing closure.
+# REF20 is topology evidence only. All BALL_* values below are 12in CAD candidates/controls.
 "BALL_UPPER_BORE_D" = 105mm
 "BALL_UPPER_BORE_DEPTH" = 30mm
 "BALL_LOWER_BORE_D" = 70mm
 "BALL_LOWER_BORE_DEPTH" = 52mm
-"BALL_DRIVE_SLOT_L_X" = 70mm
-"BALL_DRIVE_SLOT_W_Y" = 44mm
+# Deep inspection proved the mature slot orientation is X-short / Y-long. 12in candidate = X44 x Y70 R8, depth27.
+"BALL_DRIVE_SLOT_L_X" = 44mm
+"BALL_DRIVE_SLOT_W_Y" = 70mm
 "BALL_DRIVE_SLOT_R" = 8mm
 "BALL_DRIVE_SLOT_DEPTH" = 27mm
+# 12in process-hole CAD candidates used only to preserve the mature two-hole topology in S04.
+# REF20 was 2x D35 counterbore + M20 at X=+/-105; these values are NOT copied directly.
+# 12in candidate keeps about 8.5 mm radial ligament to the D105 upper bore: offset72, counterbore D22.
+# M12 is a CAD candidate only; the generated feature uses the 10.2 mm tap-drill geometry, not a manufacturing-frozen Hole Wizard thread.
+"BALL_PROC_HOLE_QTY" = 2
+"BALL_PROC_HOLE_CENTER_OFFSET_X_CAD" = 72mm
+"BALL_PROC_DATUM_Z_CAD" = 226.9mm
+"BALL_PROC_COUNTERBORE_D_CAD" = 22mm
+"BALL_PROC_COUNTERBORE_CUT_FROM_DATUM_CAD" = 12mm
+"BALL_PROC_THREAD_D_CAD" = 12mm
+"BALL_PROC_TAP_DRILL_D_CAD" = 10.2mm
+"BALL_PROC_PILOT_CUT_FROM_DATUM_CAD" = 31mm
+"BALL_PROC_THREAD_DEPTH_CAD" = 20mm
 "X_CONTACT_R" = 166.036mm
 "X_CONTACT_L" = -166.036mm
 "X_BODY_JOINT_CAD" = 232.5mm
