@@ -4,7 +4,7 @@ function Invoke-S03 {
 
     $model = $null
     try {
-        $model = [Q347F.SwSessionApi]::NewPart($script:SwApp, $script:PartTemplate)
+        $model = [Q347F.SwSessionApi]::NewPart($script:SwSession, $script:PartTemplate)
         Write-RunLog 'S03' 'SKELETON' 16 'PASS' 'New Part created from the configured SOLIDWORKS 2025 template.'
 
         $eqCount = [Q347F.SwEquationApi]::ImportOrUpdateEquations($model, $ParameterFile)
@@ -150,8 +150,7 @@ function Invoke-S03 {
     }
     finally {
         if (-not $KeepSolidWorksOpen -and $null -ne $model) {
-            [Q347F.SwValidationApi]::CloseDocument($script:SwApp, $model)
+            [Q347F.SwSessionApi]::CloseDocument($script:SwSession, $model)
         }
     }
 }
-
