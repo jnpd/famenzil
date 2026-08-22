@@ -52,18 +52,29 @@ namespace Q347F
             };
         }
 
-        public static string GetDefaultPartTemplate(SldWorks app)
+        public static string GetDefaultPartTemplate(SwSession session)
         {
-            return app.GetUserPreferenceStringValue((int)swUserPreferenceStringValue_e.swDefaultTemplatePart);
+            if (session == null || session.App == null)
+                throw new ArgumentNullException("session", "SOLIDWORKS session is null.");
+            return session.App.GetUserPreferenceStringValue((int)swUserPreferenceStringValue_e.swDefaultTemplatePart);
         }
 
-        public static ModelDoc2 NewPart(SldWorks app, string templatePath)
+        public static object NewPart(SwSession session, string templatePath)
         {
-            object doc = app.NewDocument(templatePath, 0, 0.0, 0.0);
+            if (session == null || session.App == null)
+                throw new ArgumentNullException("session", "SOLIDWORKS session is null.");
+            object doc = session.App.NewDocument(templatePath, 0, 0.0, 0.0);
             if (doc == null) throw new InvalidOperationException("ISldWorks.NewDocument returned null.");
             ModelDoc2 model = (ModelDoc2)doc;
             model.ShowFeatureErrorDialog = false;
-            return model;
+            return doc;
+        }
+
+        public static void CloseDocument(SwSession session, object modelObject)
+        {
+            if (session == null || session.App == null || modelObject == null) return;
+            ModelDoc2 model = (ModelDoc2)modelObject;
+            try { session.App.CloseDoc(model.GetTitle()); } catch { }
         }
     }
 }
