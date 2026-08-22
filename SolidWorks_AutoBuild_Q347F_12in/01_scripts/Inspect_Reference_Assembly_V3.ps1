@@ -59,10 +59,19 @@ $app = $session.App
 $revision = [string]$session.Revision
 Write-Host ("[A01][PASS] Connection={0} PID={1} Revision={2}" -f $session.Mode,$session.ProcessId,$revision) -ForegroundColor Green
 
-# Fail-fast probe. Do not scan 42 files until the common open/read path is proven.
-$probe = @($PartFiles | Where-Object { $_.BaseName -eq '20Q347F-300LB-03 球体' } | Select-Object -First 1)
-if ($probe.Count -eq 0) { throw 'Probe part 20Q347F-300LB-03 球体.SLDPRT was not found in Pack and Go.' }
-Write-Host ("[A01-PROBE][RUNNING] {0}" -f $probe[0].Name) -ForegroundColor Cyan
+# Fail-fast probe. Match by the ASCII manufacturing part number only.
+# Windows PowerShell 5.1 can mis-decode non-BOM UTF-8 source literals, so never
+# depend on the Chinese display name when locating a Pack and Go file.
+$probe = @(
+    $PartFiles |
+    Where-Object { $_.BaseName -match '^20Q347F-300LB-03(?:\s|$)' } |
+    Select-Object -First 1
+)
+if ($probe.Count -eq 0) {
+    $candidates = @($PartFiles | Where-Object { $_.BaseName -like '20Q347F-300LB-03*' } | ForEach-Object { $_.Name })
+    throw ("Probe part number 20Q347F-300LB-03 was not found. Candidates={0}" -f ($candidates -join '; '))
+}
+Write-Host ("[A01-PROBE][RUNNING] Resolved by part number: {0}" -f $probe[0].Name) -ForegroundColor Cyan
 try {
     $probeReport = [Q347F.SwReferenceInspectorApi]::Inspect($app, $revision, $probe[0].FullName)
     Write-Host ("[A01-PROBE][PASS] Title={0}; Features={1}; SolidBodies={2}" -f $probeReport.Title,$probeReport.FeatureCount,$probeReport.SolidBodyCount) -ForegroundColor Green
