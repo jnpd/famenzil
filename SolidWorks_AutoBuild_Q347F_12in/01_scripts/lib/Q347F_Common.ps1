@@ -114,6 +114,69 @@ function Find-SolidWorksFile([string]$FileName) {
     return $null
 }
 
+function Initialize-SolidWorksInteropAssemblies {
+    param(
+        [Parameter(Mandatory)][string]$SldworksPath,
+        [Parameter(Mandatory)][string]$SwconstPath
+    )
+
+    $sld = (Resolve-Path -LiteralPath $SldworksPath).Path
+    $swc = (Resolve-Path -LiteralPath $SwconstPath).Path
+
+    if (-not ('Q347F.InteropAssemblyResolver' -as [type])) {
+        $resolverSource = @'
+using System;
+using System.IO;
+using System.Reflection;
+
+namespace Q347F
+{
+    public static class InteropAssemblyResolver
+    {
+        private static string _sldworks;
+        private static string _swconst;
+        private static bool _installed;
+
+        public static void Install(string sldworksPath, string swconstPath)
+        {
+            _sldworks = Path.GetFullPath(sldworksPath);
+            _swconst = Path.GetFullPath(swconstPath);
+            if (_installed) return;
+            AppDomain.CurrentDomain.AssemblyResolve += Resolve;
+            _installed = true;
+        }
+
+        private static Assembly Resolve(object sender, ResolveEventArgs args)
+        {
+            string simpleName = new AssemblyName(args.Name).Name;
+            if (string.Equals(simpleName, "SolidWorks.Interop.sldworks", StringComparison.OrdinalIgnoreCase))
+                return Assembly.LoadFrom(_sldworks);
+            if (string.Equals(simpleName, "SolidWorks.Interop.swconst", StringComparison.OrdinalIgnoreCase))
+                return Assembly.LoadFrom(_swconst);
+            return null;
+        }
+
+        public static string SldworksPath { get { return _sldworks; } }
+        public static string SwconstPath { get { return _swconst; } }
+    }
+}
+'@
+        Add-Type -TypeDefinition $resolverSource -Language CSharp -ReferencedAssemblies @('System.dll', 'System.Core.dll')
+    }
+
+    [Q347F.InteropAssemblyResolver]::Install($sld, $swc)
+
+    $loadedSwconst = [Reflection.Assembly]::LoadFrom($swc)
+    $loadedSldworks = [Reflection.Assembly]::LoadFrom($sld)
+
+    return [pscustomobject]@{
+        SldworksFullName = $loadedSldworks.FullName
+        SldworksLocation = $loadedSldworks.Location
+        SwconstFullName = $loadedSwconst.FullName
+        SwconstLocation = $loadedSwconst.Location
+    }
+}
+
 function Get-FileSha256([string]$Path) {
     return (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash.ToLowerInvariant()
 }
