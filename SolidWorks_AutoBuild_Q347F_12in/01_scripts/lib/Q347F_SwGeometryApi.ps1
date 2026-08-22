@@ -37,6 +37,80 @@ namespace Q347F
             return planes;
         }
 
+        private static string ClassifyPlaneOrientationByWorldCorners(Feature feature)
+        {
+            RefPlane plane = feature.GetSpecificFeature2() as RefPlane;
+            if (plane == null) throw new InvalidOperationException("Native RefPlane interface unavailable for " + feature.Name);
+
+            Array points = plane.CornerPoints as Array;
+            if (points == null || points.Length < 4)
+                throw new InvalidOperationException("Native plane CornerPoints unavailable for " + feature.Name);
+
+            double[] min = new double[] { Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity };
+            double[] max = new double[] { Double.NegativeInfinity, Double.NegativeInfinity, Double.NegativeInfinity };
+
+            foreach (object pointObject in points)
+            {
+                MathPoint point = pointObject as MathPoint;
+                if (point == null) throw new InvalidOperationException("CornerPoints item is not MathPoint for " + feature.Name);
+                Array data = point.ArrayData as Array;
+                if (data == null || data.Length < 3) throw new InvalidOperationException("Invalid MathPoint.ArrayData for " + feature.Name);
+                for (int i = 0; i < 3; i++)
+                {
+                    double v = Convert.ToDouble(data.GetValue(i));
+                    min[i] = Math.Min(min[i], v);
+                    max[i] = Math.Max(max[i], v);
+                }
+            }
+
+            double sx = max[0] - min[0];
+            double sy = max[1] - min[1];
+            double sz = max[2] - min[2];
+
+            if (sx <= sy && sx <= sz) return "YZ"; // X = constant
+            if (sy <= sx && sy <= sz) return "XZ"; // Y = constant
+            return "XY";                           // Z = constant
+        }
+
+        private static Dictionary<string, Feature> GetNativeDefaultPlanesByOrientation(ModelDoc2 model)
+        {
+            List<Feature> planes = GetNativeDefaultPlanes(model);
+            Dictionary<string, Feature> result = new Dictionary<string, Feature>(StringComparer.OrdinalIgnoreCase);
+
+            bool classified = true;
+            try
+            {
+                foreach (Feature f in planes)
+                {
+                    string orientation = ClassifyPlaneOrientationByWorldCorners(f);
+                    if (result.ContainsKey(orientation))
+                    {
+                        classified = false;
+                        break;
+                    }
+                    result[orientation] = f;
+                }
+                classified = classified && result.ContainsKey("XY") && result.ContainsKey("XZ") && result.ContainsKey("YZ");
+            }
+            catch
+            {
+                classified = false;
+            }
+
+            if (!classified)
+            {
+                // Standard SOLIDWORKS new-part order is Front, Top, Right.
+                // In SOLIDWORKS world coordinates these are XY, XZ, YZ respectively.
+                // This fallback is only used if CornerPoints classification is unavailable.
+                result.Clear();
+                result["XY"] = planes[0];
+                result["XZ"] = planes[1];
+                result["YZ"] = planes[2];
+            }
+
+            return result;
+        }
+
         private static Feature FindFeatureByName(ModelDoc2 model, string name)
         {
             Feature f = (Feature)model.FirstFeature();
@@ -80,10 +154,15 @@ namespace Q347F
         public static string[] CreateProjectBasePlanes(object modelObject)
         {
             ModelDoc2 model = AsModel(modelObject);
-            List<Feature> p = GetNativeDefaultPlanes(model);
-            Feature xz = CreateCoincidentPlane(model, p[0], "PLN_BASE_XZ_FLOW_SUPPORT");
-            Feature xy = CreateCoincidentPlane(model, p[1], "PLN_BASE_XY_FLOW_CROSS");
-            Feature yz = CreateCoincidentPlane(model, p[2], "PLN_BASE_YZ_CROSS_SUPPORT");
+            Dictionary<string, Feature> p = GetNativeDefaultPlanesByOrientation(model);
+
+            // Project coordinate convention:
+            // XY plane -> Z=0, used for all Z station offsets.
+            // XZ plane -> Y=0, used with XY/YZ to define X and Z axes.
+            // YZ plane -> X=0, used for all X station offsets.
+            Feature xy = CreateCoincidentPlane(model, p["XY"], "PLN_BASE_XY_FLOW_CROSS");
+            Feature xz = CreateCoincidentPlane(model, p["XZ"], "PLN_BASE_XZ_FLOW_SUPPORT");
+            Feature yz = CreateCoincidentPlane(model, p["YZ"], "PLN_BASE_YZ_CROSS_SUPPORT");
             return new string[] { xy.Name, xz.Name, yz.Name };
         }
 
@@ -185,7 +264,6 @@ namespace Q347F
             }
             if (count == 0) throw new InvalidOperationException("No corner point coordinates for " + featureName);
 
-            // All four corner points on X=constant or Z=constant station planes must share the same target coordinate.
             if (Math.Abs(max - min) > 1e-5)
                 throw new InvalidOperationException("Corner point spread is too large for station plane " + featureName);
 
@@ -219,7 +297,6 @@ namespace Q347F
             }
             catch
             {
-                // Fallback for installations where CornerPoints is temporarily unavailable.
                 return ReadPlaneCoordinateFromTransformMm(plane, featureName, axis);
             }
         }
