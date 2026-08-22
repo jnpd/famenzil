@@ -2,11 +2,11 @@ function Add-EmbeddedSwReferenceInspectorApiType {
     if ('Q347F.SwReferenceInspectorApi' -as [type]) { return }
 
     $source = @'
-using System;
-using System.Collections.Generic;
-using System.IO;
-using SolidWorks.Interop.sldworks;
-using SolidWorks.Interop.swconst;
+using Sys = System;
+using IO = System.IO;
+using Collections = System.Collections.Generic;
+using SW = SolidWorks.Interop.sldworks;
+using SWC = SolidWorks.Interop.swconst;
 
 namespace Q347F
 {
@@ -27,7 +27,7 @@ namespace Q347F
         public string TypeName;
         public string ParentName;
         public bool Suppressed;
-        public List<RefDimensionInfo> Dimensions = new List<RefDimensionInfo>();
+        public Collections.List<RefDimensionInfo> Dimensions = new Collections.List<RefDimensionInfo>();
     }
 
     public sealed class RefPartReport
@@ -43,30 +43,71 @@ namespace Q347F
         public double[] BoundingBoxMm;
         public double[] MaterialPropertyValues;
         public string[] Equations;
-        public List<RefFeatureInfo> Features = new List<RefFeatureInfo>();
+        public Collections.List<RefFeatureInfo> Features = new Collections.List<RefFeatureInfo>();
     }
 
     public static class SwReferenceInspectorApi
     {
-        private static Feature FirstSubFeature(Feature feature)
+        private static SW.Feature FirstSubFeature(SW.Feature feature)
         {
             if (feature == null) return null;
-            try { return feature.GetFirstSubFeature() as Feature; } catch { return null; }
+            try { return feature.GetFirstSubFeature() as SW.Feature; } catch { return null; }
         }
 
-        private static Feature NextSubFeature(Feature feature)
+        private static SW.Feature NextSubFeature(SW.Feature feature)
         {
             if (feature == null) return null;
-            try { return feature.GetNextSubFeature() as Feature; } catch { return null; }
+            try { return feature.GetNextSubFeature() as SW.Feature; } catch { return null; }
         }
 
-        private static Feature NextFeature(Feature feature)
+        private static SW.Feature NextFeature(SW.Feature feature)
         {
             if (feature == null) return null;
-            try { return feature.GetNextFeature() as Feature; } catch { return null; }
+            try { return feature.GetNextFeature() as SW.Feature; } catch { return null; }
         }
 
-        private static void CollectDimensions(Feature f, RefFeatureInfo fi)
+        private static SW.ModelDoc2 FindOpenDocumentByPathOrTitle(SW.SldWorks app, string fullPath)
+        {
+            if (app == null || Sys.String.IsNullOrWhiteSpace(fullPath)) return null;
+            string target;
+            try { target = IO.Path.GetFullPath(fullPath); } catch { target = fullPath; }
+            string titleWanted = IO.Path.GetFileName(target);
+
+            try
+            {
+                SW.ModelDoc2 exact = app.GetOpenDocumentByName(target) as SW.ModelDoc2;
+                if (exact != null) return exact;
+            }
+            catch { }
+
+            try
+            {
+                SW.ModelDoc2 cur = app.GetFirstDocument() as SW.ModelDoc2;
+                int guard = 0;
+                while (cur != null && guard++ < 500)
+                {
+                    string path = "";
+                    string title = "";
+                    try { path = cur.GetPathName(); } catch { }
+                    try { title = cur.GetTitle(); } catch { }
+
+                    if (!Sys.String.IsNullOrWhiteSpace(path))
+                    {
+                        string normalized;
+                        try { normalized = IO.Path.GetFullPath(path); } catch { normalized = path; }
+                        if (Sys.String.Equals(normalized, target, Sys.StringComparison.OrdinalIgnoreCase)) return cur;
+                    }
+                    if (!Sys.String.IsNullOrWhiteSpace(title) &&
+                        Sys.String.Equals(title, titleWanted, Sys.StringComparison.OrdinalIgnoreCase)) return cur;
+
+                    try { cur = cur.GetNext() as SW.ModelDoc2; } catch { cur = null; }
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        private static void CollectDimensions(SW.Feature f, RefFeatureInfo fi)
         {
             object current = null;
             try { current = f.GetFirstDisplayDimension(); } catch { return; }
@@ -75,10 +116,10 @@ namespace Q347F
             {
                 try
                 {
-                    DisplayDimension dd = current as DisplayDimension;
+                    SW.DisplayDimension dd = current as SW.DisplayDimension;
                     if (dd != null)
                     {
-                        Dimension d = dd.GetDimension2(0);
+                        SW.Dimension d = dd.GetDimension2(0);
                         if (d != null)
                         {
                             double v = d.SystemValue;
@@ -98,72 +139,72 @@ namespace Q347F
             }
         }
 
-        private static void CollectFeatureRecursive(Feature f, int level, string parent, RefPartReport report, ref int order)
+        private static void CollectFeatureRecursive(SW.Feature f, int level, string parent, RefPartReport report, ref int order)
         {
             if (f == null) return;
             RefFeatureInfo fi = new RefFeatureInfo();
             fi.Order = ++order;
             fi.Level = level;
-            fi.Name = f.Name;
+            try { fi.Name = f.Name; } catch { fi.Name = ""; }
             fi.ParentName = parent ?? "";
             try { fi.TypeName = f.GetTypeName2(); } catch { fi.TypeName = ""; }
             try { fi.Suppressed = f.IsSuppressed(); } catch { fi.Suppressed = false; }
             CollectDimensions(f, fi);
             report.Features.Add(fi);
 
-            Feature sub = FirstSubFeature(f);
+            SW.Feature sub = FirstSubFeature(f);
             int guard = 0;
             while (sub != null && guard++ < 500)
             {
-                CollectFeatureRecursive(sub, level + 1, f.Name, report, ref order);
+                CollectFeatureRecursive(sub, level + 1, fi.Name, report, ref order);
                 sub = NextSubFeature(sub);
             }
         }
 
-        private static string[] ReadEquations(ModelDoc2 model)
+        private static string[] ReadEquations(SW.ModelDoc2 model)
         {
             try
             {
-                EquationMgr mgr = model.GetEquationMgr();
+                SW.EquationMgr mgr = model.GetEquationMgr();
                 if (mgr == null) return new string[0];
                 int n = mgr.GetCount();
-                List<string> eq = new List<string>();
+                Collections.List<string> eq = new Collections.List<string>();
                 for (int i = 0; i < n; i++) { try { eq.Add(mgr.get_Equation(i)); } catch { } }
                 return eq.ToArray();
             }
             catch { return new string[0]; }
         }
 
-        private static double[] ReadBoundingBoxMm(ModelDoc2 model, out int bodyCount)
+        private static double[] ReadBoundingBoxMm(SW.ModelDoc2 model, out int bodyCount)
         {
             bodyCount = 0;
-            PartDoc part = model as PartDoc;
+            SW.PartDoc part = model as SW.PartDoc;
             if (part == null) return new double[0];
             try
             {
-                Array bodies = part.GetBodies2((int)swBodyType_e.swSolidBody, true) as Array;
+                Sys.Array bodies = part.GetBodies2((int)SWC.swBodyType_e.swSolidBody, true) as Sys.Array;
                 bodyCount = bodies == null ? 0 : bodies.Length;
             }
             catch { }
             try
             {
-                Array box = part.GetPartBox(true) as Array;
+                Sys.Array box = part.GetPartBox(true) as Sys.Array;
                 if (box == null || box.Length < 6) return new double[0];
                 double[] mm = new double[6];
-                for (int i = 0; i < 6; i++) mm[i] = Convert.ToDouble(box.GetValue(i)) * 1000.0;
+                for (int i = 0; i < 6; i++) mm[i] = Sys.Convert.ToDouble(box.GetValue(i)) * 1000.0;
                 return mm;
             }
             catch { return new double[0]; }
         }
 
-        private static double[] ReadMaterial(ModelDoc2 model)
+        private static double[] ReadMaterial(SW.ModelDoc2 model)
         {
             try
             {
-                Array a = model.MaterialPropertyValues as Array;
+                Sys.Array a = model.MaterialPropertyValues as Sys.Array;
                 if (a == null) return new double[0];
                 double[] v = new double[a.Length];
-                for (int i = 0; i < a.Length; i++) v[i] = Convert.ToDouble(a.GetValue(i));
+                for (int i = 0; i < a.Length; i++) v[i] = Sys.Convert.ToDouble(a.GetValue(i));
                 return v;
             }
             catch { return new double[0]; }
@@ -171,32 +212,37 @@ namespace Q347F
 
         public static RefPartReport Inspect(object appObject, string revision, string partPath)
         {
-            SldWorks app = appObject as SldWorks;
-            if (app == null) throw new ArgumentException("appObject is not a SOLIDWORKS SldWorks application.");
-            if (String.IsNullOrWhiteSpace(partPath) || !File.Exists(partPath))
-                throw new FileNotFoundException("Reference SLDPRT not found", partPath);
+            SW.SldWorks app = appObject as SW.SldWorks;
+            if (app == null) throw new Sys.ArgumentException("appObject is not a SOLIDWORKS SldWorks application.");
+            if (Sys.String.IsNullOrWhiteSpace(partPath) || !IO.File.Exists(partPath))
+                throw new IO.FileNotFoundException("Reference SLDPRT not found", partPath);
 
-            string fullPath = Path.GetFullPath(partPath);
-            string workingDir = Path.GetDirectoryName(fullPath);
-            if (!String.IsNullOrWhiteSpace(workingDir)) { try { app.SetCurrentWorkingDirectory(workingDir); } catch { } }
+            string fullPath = IO.Path.GetFullPath(partPath);
+            string workingDir = IO.Path.GetDirectoryName(fullPath);
+            if (!Sys.String.IsNullOrWhiteSpace(workingDir)) { try { app.SetCurrentWorkingDirectory(workingDir); } catch { } }
 
             int errors = 0;
             int warnings = 0;
-            ModelDoc2 model = null;
+            SW.ModelDoc2 model = FindOpenDocumentByPathOrTitle(app, fullPath);
             bool openedHere = false;
-            try { model = app.GetOpenDocumentByName(fullPath) as ModelDoc2; } catch { }
             if (model == null)
             {
                 object opened = app.OpenDoc6(
                     fullPath,
-                    (int)swDocumentTypes_e.swDocPART,
-                    (int)(swOpenDocOptions_e.swOpenDocOptions_Silent | swOpenDocOptions_e.swOpenDocOptions_ReadOnly),
+                    (int)SWC.swDocumentTypes_e.swDocPART,
+                    (int)(SWC.swOpenDocOptions_e.swOpenDocOptions_Silent | SWC.swOpenDocOptions_e.swOpenDocOptions_ReadOnly),
                     "", ref errors, ref warnings);
-                model = opened as ModelDoc2;
-                openedHere = true;
+                model = opened as SW.ModelDoc2;
+                openedHere = model != null;
+
+                if (model == null && errors == 65536)
+                {
+                    model = FindOpenDocumentByPathOrTitle(app, fullPath);
+                    openedHere = false;
+                }
             }
             if (model == null)
-                throw new InvalidOperationException("SOLIDWORKS could not open reference part. OpenErrors=" + errors + ", OpenWarnings=" + warnings);
+                throw new Sys.InvalidOperationException("SOLIDWORKS could not open reference part. OpenErrors=" + errors + ", OpenWarnings=" + warnings + ", Path=" + fullPath);
 
             try
             {
@@ -214,8 +260,8 @@ namespace Q347F
                 report.SolidBodyCount = bodyCount;
 
                 int order = 0;
-                Feature f = null;
-                try { f = model.FirstFeature() as Feature; } catch { }
+                SW.Feature f = null;
+                try { f = model.FirstFeature() as SW.Feature; } catch { }
                 int guard = 0;
                 while (f != null && guard++ < 2000)
                 {
@@ -227,7 +273,7 @@ namespace Q347F
             }
             finally
             {
-                if (openedHere) { try { app.CloseDoc(model.GetTitle()); } catch { } }
+                if (openedHere && model != null) { try { app.CloseDoc(model.GetTitle()); } catch { } }
             }
         }
     }
