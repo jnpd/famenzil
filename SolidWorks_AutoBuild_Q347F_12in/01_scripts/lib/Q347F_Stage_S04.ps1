@@ -1,6 +1,6 @@
 function Invoke-S04 {
     Set-StepStatus 'S04' 'RUNNING' 'S04 started'
-    Write-RunLog 'S04' 'BALL' 25 'RUNNING' 'Creating editable 01_BALL.SLDPRT from current manufacturing dimensions.'
+    Write-RunLog 'S04' 'BALL' 25 'RUNNING' 'Creating editable 01_BALL.SLDPRT from current CAD-draft candidate dimensions.'
 
     $model = $null
     try {
@@ -35,7 +35,7 @@ function Invoke-S04 {
         [void][Q347F.SwGeometryApi]::CreateStationPlane($model, 'Z', $ballR, $topPlane)
         [void][Q347F.SwGeometryApi]::CreateStationPlane($model, 'Z', (-$ballR), $bottomPlane)
         [void][Q347F.SwGeometryApi]::CreateStationPlane($model, 'Z', $slotStartZ, $slotPlane)
-        Write-RunLog 'S04' 'DATUMS' 27 'PASS' ("Ball manufacturing datum planes: top Z=+{0}, bottom Z=-{0}, drive-slot start Z={1} mm." -f $ballR, $slotStartZ)
+        Write-RunLog 'S04' 'DATUMS' 27 'PASS' ("Ball CAD datum planes: top Z=+{0}, bottom Z=-{0}, drive-slot start Z={1} mm." -f $ballR, $slotStartZ)
 
         $coreName = [Q347F.SwBallApi]::CreateBallCore(
             $model,
@@ -56,7 +56,7 @@ function Invoke-S04 {
             (Get-Param 'BALL_UPPER_BORE_D'),
             $upperDepth,
             $false)
-        Write-RunLog 'S04' 'UPPER_SUPPORT' 31 'PASS' ("{0}: D{1} x {2} total depth, current manufacturing value." -f $upperName, (Get-Param 'BALL_UPPER_BORE_D'), $upperDepth)
+        Write-RunLog 'S04' 'UPPER_SUPPORT' 31 'PASS' ("{0}: D{1} x {2} total depth, current CAD candidate." -f $upperName, (Get-Param 'BALL_UPPER_BORE_D'), $upperDepth)
 
         Write-RunLog 'S04' 'DRIVE_SLOT' 31 'RUNNING' ("Creating upper drive slot {0}x{1} R{2}, depth={3} mm from upper-bore bottom plane." -f (Get-Param 'BALL_DRIVE_SLOT_L_X'), (Get-Param 'BALL_DRIVE_SLOT_W_Y'), (Get-Param 'BALL_DRIVE_SLOT_R'), (Get-Param 'BALL_DRIVE_SLOT_DEPTH'))
         $slotName = [Q347F.SwBallApi]::CreateRoundedRectangleBlindCut(
@@ -77,7 +77,7 @@ function Invoke-S04 {
             (Get-Param 'BALL_LOWER_BORE_D'),
             $lowerDepth,
             $true)
-        Write-RunLog 'S04' 'LOWER_SUPPORT' 32 'PASS' ("{0}: D{1} x {2} total depth, current manufacturing value." -f $lowerName, (Get-Param 'BALL_LOWER_BORE_D'), $lowerDepth)
+        Write-RunLog 'S04' 'LOWER_SUPPORT' 32 'PASS' ("{0}: D{1} x {2} total depth, current CAD candidate." -f $lowerName, (Get-Param 'BALL_LOWER_BORE_D'), $lowerDepth)
 
         $validation = [Q347F.SwValidationApi]::Validate($model)
         if (-not $validation.RebuildOk) {
