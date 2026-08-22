@@ -227,7 +227,7 @@ namespace Q347F
                 throw new ArgumentException("Rounded rectangle is too small for the requested corner radius.");
 
             // Robust construction for the 12in upper drive slot.
-            // 70x44 R8 is created as the exact boolean union of two rectangles + four R8 circles.
+            // Numeric orientation is supplied by S04 V2 after decoding the 20in reference topology.
             double innerLength = lengthXmm - 2.0 * cornerRmm;
             double innerWidth = widthYmm - 2.0 * cornerRmm;
             double cornerCenterX = lengthXmm / 2.0 - cornerRmm;
@@ -254,15 +254,16 @@ namespace Q347F
         {
             ModelDoc2 model = AsModel(modelObject);
 
-            // Dark charcoal, close to the customer's black/dark SOLIDWORKS appearance while
-            // retaining enough diffuse/specular response to keep curved surfaces readable.
+            // Neutral industrial grey matched to the customer's readable assembly presentation.
+            // Deliberately brighter than the previous near-black appearance so spherical curvature,
+            // bores, slots, shoulders and edge transitions remain visible during design review.
             model.MaterialPropertyValues = new double[]
             {
-                0.08, 0.08, 0.08,   // R, G, B
-                0.22,               // ambient
-                0.58,               // diffuse
-                0.16,               // specular
-                0.18,               // shininess
+                0.42, 0.42, 0.42,   // R, G, B: medium neutral grey
+                0.30,               // ambient
+                0.72,               // diffuse
+                0.24,               // specular
+                0.26,               // shininess
                 0.00,               // transparency
                 0.00                // emission
             };
