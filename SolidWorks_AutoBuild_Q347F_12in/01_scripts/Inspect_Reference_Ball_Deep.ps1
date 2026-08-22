@@ -13,7 +13,6 @@ $LogsRoot = Join-Path $AutoRoot '04_logs'
 
 . (Join-Path $ScriptDir 'lib\Q347F_Common.ps1')
 . (Join-Path $ScriptDir 'lib\Q347F_Config.ps1')
-. (Join-Path $ScriptDir 'lib\Q347F_InteropLoader.ps1')
 . (Join-Path $ScriptDir 'lib\Q347F_SwSessionApi.ps1')
 . (Join-Path $ScriptDir 'lib\Q347F_SwBallReferenceDeepInspectorApi.ps1')
 
@@ -64,6 +63,10 @@ if (-not $script:InteropSldworks) { $script:InteropSldworks = Find-SolidWorksFil
 $script:InteropSwconst = Find-FirstExistingPath @((Join-Path $apiRedist 'SolidWorks.Interop.swconst.dll'))
 if (-not $script:InteropSwconst) { $script:InteropSwconst = Find-SolidWorksFile 'SolidWorks.Interop.swconst.dll' }
 if (-not $script:InteropSldworks -or -not $script:InteropSwconst) { throw 'SOLIDWORKS interop DLLs not found.' }
+
+if (-not (Get-Command Initialize-SolidWorksInteropAssemblies -ErrorAction SilentlyContinue)) {
+    throw 'Initialize-SolidWorksInteropAssemblies was not loaded from Q347F_Common.ps1/Q347F_Config.ps1.'
+}
 
 [void](Initialize-SolidWorksInteropAssemblies -SldworksPath $script:InteropSldworks -SwconstPath $script:InteropSwconst)
 Add-EmbeddedSwSessionApiType
