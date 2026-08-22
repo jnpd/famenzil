@@ -33,10 +33,10 @@ function Invoke-S04 {
             'AXIS_X_FLOW',
             (Get-Param 'BALL_OD'),
             (Get-Param 'BALL_W_X'))
-        Write-RunLog 'S04' 'BALL_CORE' 29 'PASS' ("{0}: spherical OD φ{1}, finished X width={2} mm." -f $coreName, (Get-Param 'BALL_OD'), (Get-Param 'BALL_W_X'))
+        Write-RunLog 'S04' 'BALL_CORE' 29 'PASS' ("{0}: spherical OD D{1}, finished X width={2} mm." -f $coreName, (Get-Param 'BALL_OD'), (Get-Param 'BALL_W_X'))
 
         $boreName = [Q347F.SwBallApi]::CreateThroughBore($model, 'PLN_BASE_YZ_CROSS_SUPPORT', (Get-Param 'BORE_D'))
-        Write-RunLog 'S04' 'FLOW_BORE' 30 'PASS' ("{0}: full through flow bore φ{1} along X." -f $boreName, (Get-Param 'BORE_D'))
+        Write-RunLog 'S04' 'FLOW_BORE' 30 'PASS' ("{0}: full through flow bore D{1} along X." -f $boreName, (Get-Param 'BORE_D'))
 
         $upperName = [Q347F.SwBallApi]::CreateBlindRoundCut(
             $model,
@@ -46,7 +46,7 @@ function Invoke-S04 {
             (Get-Param 'BALL_UPPER_BORE_D'),
             $upperDepth,
             $false)
-        Write-RunLog 'S04' 'UPPER_SUPPORT' 31 'PASS' ("{0}: φ{1} x {2} total depth, TEMP-FROZEN manufacturing value." -f $upperName, (Get-Param 'BALL_UPPER_BORE_D'), $upperDepth)
+        Write-RunLog 'S04' 'UPPER_SUPPORT' 31 'PASS' ("{0}: D{1} x {2} total depth, TEMP-FROZEN manufacturing value." -f $upperName, (Get-Param 'BALL_UPPER_BORE_D'), $upperDepth)
 
         $slotName = [Q347F.SwBallApi]::CreateRoundedRectangleBlindCut(
             $model,
@@ -66,7 +66,7 @@ function Invoke-S04 {
             (Get-Param 'BALL_LOWER_BORE_D'),
             $lowerDepth,
             $true)
-        Write-RunLog 'S04' 'LOWER_SUPPORT' 32 'PASS' ("{0}: φ{1} x {2} total depth, TEMP-FROZEN manufacturing value." -f $lowerName, (Get-Param 'BALL_LOWER_BORE_D'), $lowerDepth)
+        Write-RunLog 'S04' 'LOWER_SUPPORT' 32 'PASS' ("{0}: D{1} x {2} total depth, TEMP-FROZEN manufacturing value." -f $lowerName, (Get-Param 'BALL_LOWER_BORE_D'), $lowerDepth)
 
         $validation = [Q347F.SwValidationApi]::Validate($model)
         if (-not $validation.RebuildOk) {
@@ -122,15 +122,21 @@ function Invoke-S04 {
             $previousBackup = Join-Path $RunBackupDir '01_BALL_previous_PASS.SLDPRT'
             Copy-Item -LiteralPath $BallFinalPath -Destination $previousBackup -Force
             Write-RunLog 'S04' 'BACKUP' 33 'PASS' ("Previous BALL backed up: {0}" -f $previousBackup)
+
+            $closedOld = [Q347F.SwSessionApi]::CloseDocumentByPath($script:SwSession, $BallFinalPath)
+            if ($closedOld) {
+                Write-RunLog 'S04' 'PUBLISH' 33 'PASS' 'Previously published 01_BALL.SLDPRT was open in SOLIDWORKS and was closed automatically before overwrite.'
+                Start-Sleep -Milliseconds 300
+            }
         }
 
         $saveErr2 = 0; $saveWarn2 = 0
         $publishedOk = [Q347F.SwValidationApi]::SaveAs($model, $BallFinalPath, [ref]$saveErr2, [ref]$saveWarn2)
         if (-not $publishedOk -or $saveErr2 -ne 0) {
             if ($previousBackup -and (Test-Path -LiteralPath $previousBackup)) {
-                Copy-Item -LiteralPath $previousBackup -Destination $BallFinalPath -Force
+                try { Copy-Item -LiteralPath $previousBackup -Destination $BallFinalPath -Force } catch { }
             }
-            throw "Failed to publish final BALL. SaveOk=$publishedOk ErrorCode=$saveErr2 WarningCode=$saveWarn2"
+            throw "Failed to publish final BALL. SaveOk=$publishedOk ErrorCode=$saveErr2 WarningCode=$saveWarn2. If Windows still reports the file is in use, close any external viewer/process holding 01_BALL.SLDPRT."
         }
 
         Write-RunLog 'S04' 'SAVE' 34 'PASS' ("01_BALL.SLDPRT published: {0}; SaveWarnings={1}" -f $BallFinalPath, $saveWarn2)
