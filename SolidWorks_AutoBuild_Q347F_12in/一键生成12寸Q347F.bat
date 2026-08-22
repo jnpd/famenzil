@@ -6,6 +6,16 @@ cd /d "%~dp0"
 set "RESUME_ARG="
 if /I "%~1"=="resume" set "RESUME_ARG=-Resume"
 
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0\01_scripts\00_Preflight_Parse.ps1" -Root "%~dp0\01_scripts"
+set "PREFLIGHT_RC=%ERRORLEVEL%"
+if not "%PREFLIGHT_RC%"=="0" (
+    echo.
+    echo [FAIL] PowerShell syntax preflight failed. Build did not enter S00.
+    pause
+    exit /b %PREFLIGHT_RC%
+)
+
+echo.
 powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0\01_scripts\Build_Q347F_12in.ps1" %RESUME_ARG%
 set "RC=%ERRORLEVEL%"
 
