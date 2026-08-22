@@ -1,0 +1,18 @@
+# SOLIDWORKS generated outputs
+02_output/*
+!02_output/.gitkeep
+
+# Run backups / logs
+03_backup/*
+!03_backup/.gitkeep
+04_logs/*
+!04_logs/.gitkeep
+
+# Build lock
+.build.lock
+
+# Windows temporary files
+Thumbs.db
+Desktop.ini
+*.tmp
+~$*
