@@ -39,16 +39,12 @@ function Invoke-S00 {
     Write-RunLog 'S00' 'SW2025' 2 'PASS' ("SLDWORKS.exe={0}" -f $script:SldworksExe)
 
     $apiRedist = Join-Path (Split-Path -Parent $script:SldworksExe) 'api\redist'
-    $script:InteropSldworks = Find-FirstExistingPath @(
-        (Join-Path $apiRedist 'SolidWorks.Interop.sldworks.dll')
-    )
+    $script:InteropSldworks = Find-FirstExistingPath @((Join-Path $apiRedist 'SolidWorks.Interop.sldworks.dll'))
     if (-not $script:InteropSldworks) { $script:InteropSldworks = Find-SolidWorksFile 'SolidWorks.Interop.sldworks.dll' }
     Assert-True (-not [string]::IsNullOrWhiteSpace($script:InteropSldworks)) 'BLOCKED: SolidWorks.Interop.sldworks.dll not found.'
     Write-RunLog 'S00' 'INTEROP' 3 'PASS' ("sldworks.dll={0}" -f $script:InteropSldworks)
 
-    $script:InteropSwconst = Find-FirstExistingPath @(
-        (Join-Path $apiRedist 'SolidWorks.Interop.swconst.dll')
-    )
+    $script:InteropSwconst = Find-FirstExistingPath @((Join-Path $apiRedist 'SolidWorks.Interop.swconst.dll'))
     if (-not $script:InteropSwconst) { $script:InteropSwconst = Find-SolidWorksFile 'SolidWorks.Interop.swconst.dll' }
     Assert-True (-not [string]::IsNullOrWhiteSpace($script:InteropSwconst)) 'BLOCKED: SolidWorks.Interop.swconst.dll not found.'
     Write-RunLog 'S00' 'INTEROP' 3 'PASS' ("swconst.dll={0}" -f $script:InteropSwconst)
@@ -59,9 +55,7 @@ function Invoke-S00 {
     Assert-True ($constAsmVer.Major -eq $RequiredSwMajorRevision) ("BLOCKED: swconst interop major version is {0}; expected {1} for SOLIDWORKS 2025." -f $constAsmVer.Major, $RequiredSwMajorRevision)
     Write-RunLog 'S00' 'INTEROP' 4 'PASS' ("Interop versions: sldworks={0}, swconst={1}" -f $sldAsmVer, $constAsmVer)
 
-    $interopLoad = Initialize-SolidWorksInteropAssemblies -SldworksPath $script:InteropSldworks -SwconstPath $script:InteropSwconst
-    Write-RunLog 'S00' 'CLR' 4 'PASS' ("Loaded {0} from {1}" -f $interopLoad.SldworksFullName, $interopLoad.SldworksLocation)
-    Write-RunLog 'S00' 'CLR' 4 'PASS' ("Loaded {0} from {1}" -f $interopLoad.SwconstFullName, $interopLoad.SwconstLocation)
+    Initialize-SolidWorksInteropAssemblies
 
     $probe = Join-Path $OutputRoot (".__write_probe_{0}.tmp" -f $RunId)
     'ok' | Set-Content -LiteralPath $probe -Encoding ASCII
@@ -86,7 +80,7 @@ function Invoke-S00 {
     Add-EmbeddedSwEquationApiType
     Add-EmbeddedSwGeometryApiType
     Add-EmbeddedSwValidationApiType
-    Write-RunLog 'S00' 'CSHARP' 5 'PASS' ("Embedded C# compiled after CLR interop preload. ScriptVersion={0}" -f $ScriptVersion)
+    Write-RunLog 'S00' 'CSHARP' 5 'PASS' ("Embedded C# compiled. ScriptVersion={0}" -f $ScriptVersion)
     Set-StepStatus 'S00' 'PASS' 'S00 PASS'
 }
 
@@ -151,6 +145,7 @@ function Invoke-S02 {
     Write-RunLog 'S02' 'SW2025' 10 'RUNNING' 'Connecting to an existing SOLIDWORKS session; if unavailable, starting a new one.'
 
     $session = [Q347F.SwSessionApi]::ConnectOrStart()
+    $script:SwSession = $session
     $script:SwApp = $session.App
     $script:SwConnectionMode = $session.Mode
     $script:SwRevision = $session.Revision
@@ -168,7 +163,7 @@ function Invoke-S02 {
 
     $template = Get-Q347FConfiguredPartTemplate
     if ([string]::IsNullOrWhiteSpace($template)) {
-        $template = [Q347F.SwSessionApi]::GetDefaultPartTemplate($script:SwApp)
+        $template = [Q347F.SwSessionApi]::GetDefaultPartTemplate($session)
     }
     Assert-True (-not [string]::IsNullOrWhiteSpace($template)) 'BLOCKED: SOLIDWORKS default Part template is not configured and build_config.json templates.partTemplatePath is empty.'
     Assert-True (Test-Path -LiteralPath $template) ("BLOCKED: Part template does not exist: {0}" -f $template)
