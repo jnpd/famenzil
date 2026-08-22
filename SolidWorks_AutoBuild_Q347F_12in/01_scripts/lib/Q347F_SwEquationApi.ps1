@@ -12,6 +12,12 @@ namespace Q347F
 {
     public static class SwEquationApi
     {
+        private static ModelDoc2 AsModel(object modelObject)
+        {
+            if (modelObject == null) throw new ArgumentNullException("modelObject");
+            return (ModelDoc2)modelObject;
+        }
+
         private static string ExtractLhsName(string equationText)
         {
             int q1 = equationText.IndexOf('"');
@@ -32,8 +38,9 @@ namespace Q347F
             return -1;
         }
 
-        public static int ImportOrUpdateEquations(ModelDoc2 model, string equationFile)
+        public static int ImportOrUpdateEquations(object modelObject, string equationFile)
         {
+            ModelDoc2 model = AsModel(modelObject);
             if (!File.Exists(equationFile)) throw new FileNotFoundException("Equation file not found", equationFile);
             EquationMgr mgr = model.GetEquationMgr();
             if (mgr == null) throw new InvalidOperationException("GetEquationMgr returned null.");
