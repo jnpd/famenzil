@@ -226,13 +226,8 @@ namespace Q347F
             if (lengthXmm <= 2.0 * cornerRmm || widthYmm <= 2.0 * cornerRmm)
                 throw new ArgumentException("Rounded rectangle is too small for the requested corner radius.");
 
-            // Robust construction for a rounded rectangle. Instead of relying on an eight-segment
-            // line/arc loop (which can be rejected by FeatureCut4 when tiny endpoint topology gaps
-            // appear through COM), build the exact same 2D region as a boolean union of:
-            //   1) full-length x inner-height rectangle,
-            //   2) inner-length x full-height rectangle,
-            //   3) four R corner circles.
-            // The union is geometrically identical to lengthX x widthY with corner radius R.
+            // Robust construction for the 12in upper drive slot.
+            // 70x44 R8 is created as the exact boolean union of two rectangles + four R8 circles.
             double innerLength = lengthXmm - 2.0 * cornerRmm;
             double innerWidth = widthYmm - 2.0 * cornerRmm;
             double cornerCenterX = lengthXmm / 2.0 - cornerRmm;
@@ -247,12 +242,61 @@ namespace Q347F
             Feature sc = CreateFourCornerCirclesSketch(
                 model,
                 plane,
-                "SK_UPPER_DRIVE_SLOT_70x50_R8",
+                "SK_UPPER_DRIVE_SLOT_70x44_R8",
                 cornerCenterX,
                 cornerCenterY,
                 cornerRmm);
-            Feature finalCut = CutSelectedSketch(model, sc, "CUT_UPPER_DRIVE_SLOT_70x50_R8", false, depthMm, reverseDir);
+            Feature finalCut = CutSelectedSketch(model, sc, "CUT_UPPER_DRIVE_SLOT_70x44_R8", false, depthMm, reverseDir);
             return finalCut.Name;
+        }
+
+        public static void ApplyPresentationAppearance(object modelObject)
+        {
+            ModelDoc2 model = AsModel(modelObject);
+
+            // Dark charcoal, close to the customer's black/dark SOLIDWORKS appearance while
+            // retaining enough diffuse/specular response to keep curved surfaces readable.
+            model.MaterialPropertyValues = new double[]
+            {
+                0.08, 0.08, 0.08,   // R, G, B
+                0.22,               // ambient
+                0.58,               // diffuse
+                0.16,               // specular
+                0.18,               // shininess
+                0.00,               // transparency
+                0.00                // emission
+            };
+
+            // Hide construction/reference geometry for the saved presentation state.
+            Feature f = (Feature)model.FirstFeature();
+            while (f != null)
+            {
+                Feature next = (Feature)f.GetNextFeature();
+                string type = "";
+                try { type = f.GetTypeName2(); } catch { }
+
+                try
+                {
+                    if (String.Equals(type, "RefPlane", StringComparison.OrdinalIgnoreCase) ||
+                        String.Equals(type, "RefAxis", StringComparison.OrdinalIgnoreCase))
+                    {
+                        model.ClearSelection2(true);
+                        if (f.Select2(false, 0)) model.BlankRefGeom();
+                    }
+                    else if (String.Equals(type, "ProfileFeature", StringComparison.OrdinalIgnoreCase) ||
+                             String.Equals(type, "3DProfileFeature", StringComparison.OrdinalIgnoreCase))
+                    {
+                        model.ClearSelection2(true);
+                        if (f.Select2(false, 0)) model.BlankSketch();
+                    }
+                }
+                catch { }
+
+                f = next;
+            }
+
+            model.ClearSelection2(true);
+            try { model.GraphicsRedraw2(); } catch { }
         }
 
         public static BallAudit Audit(object modelObject)
