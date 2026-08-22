@@ -5,6 +5,7 @@ function Add-EmbeddedSwReferenceInspectorApiType {
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using SolidWorks.Interop.sldworks;
 using SolidWorks.Interop.swconst;
 
@@ -48,6 +49,27 @@ namespace Q347F
 
     public static class SwReferenceInspectorApi
     {
+        private static SldWorks GetSessionApp(object sessionObject)
+        {
+            if (sessionObject == null) throw new ArgumentNullException("sessionObject");
+            FieldInfo f = sessionObject.GetType().GetField("App");
+            if (f == null) throw new InvalidOperationException("Session object has no public App field.");
+            SldWorks app = f.GetValue(sessionObject) as SldWorks;
+            if (app == null) throw new InvalidOperationException("Session App is not a SOLIDWORKS application object.");
+            return app;
+        }
+
+        private static string GetSessionRevision(object sessionObject)
+        {
+            try
+            {
+                FieldInfo f = sessionObject.GetType().GetField("Revision");
+                object v = f == null ? null : f.GetValue(sessionObject);
+                return v == null ? "" : Convert.ToString(v);
+            }
+            catch { return ""; }
+        }
+
         private static void CollectDimensions(Feature f, RefFeatureInfo fi)
         {
             object current = null;
@@ -161,9 +183,10 @@ namespace Q347F
             catch { return new double[0]; }
         }
 
-        public static RefPartReport Inspect(SwSession session, string partPath)
+        public static RefPartReport Inspect(object sessionObject, string partPath)
         {
-            if (session == null || session.App == null) throw new ArgumentNullException("session");
+            SldWorks app = GetSessionApp(sessionObject);
+            string revision = GetSessionRevision(sessionObject);
             if (String.IsNullOrWhiteSpace(partPath) || !File.Exists(partPath))
                 throw new FileNotFoundException("Reference SLDPRT not found", partPath);
 
@@ -172,15 +195,11 @@ namespace Q347F
             ModelDoc2 model = null;
             bool openedHere = false;
 
-            try
-            {
-                model = session.App.GetOpenDocumentByName(partPath) as ModelDoc2;
-            }
-            catch { }
+            try { model = app.GetOpenDocumentByName(partPath) as ModelDoc2; } catch { }
 
             if (model == null)
             {
-                object opened = session.App.OpenDoc6(
+                object opened = app.OpenDoc6(
                     partPath,
                     (int)swDocumentTypes_e.swDocPART,
                     (int)(swOpenDocOptions_e.swOpenDocOptions_Silent | swOpenDocOptions_e.swOpenDocOptions_ReadOnly),
@@ -199,13 +218,15 @@ namespace Q347F
                 RefPartReport report = new RefPartReport();
                 report.Path = Path.GetFullPath(partPath);
                 report.Title = model.GetTitle();
-                report.Revision = session.Revision;
+                report.Revision = revision;
                 report.OpenErrors = errors;
                 report.OpenWarnings = warnings;
                 try { report.ActiveConfiguration = model.ConfigurationManager.ActiveConfiguration.Name; } catch { report.ActiveConfiguration = ""; }
                 report.Equations = ReadEquations(model);
                 report.MaterialPropertyValues = ReadMaterial(model);
-                report.BoundingBoxMm = ReadBoundingBoxMm(model, out report.SolidBodyCount);
+                int bodyCount = 0;
+                report.BoundingBoxMm = ReadBoundingBoxMm(model, out bodyCount);
+                report.SolidBodyCount = bodyCount;
 
                 int order = 0;
                 Feature f = model.FirstFeature();
@@ -223,7 +244,7 @@ namespace Q347F
             {
                 if (openedHere)
                 {
-                    try { session.App.CloseDoc(model.GetTitle()); } catch { }
+                    try { app.CloseDoc(model.GetTitle()); } catch { }
                 }
             }
         }
