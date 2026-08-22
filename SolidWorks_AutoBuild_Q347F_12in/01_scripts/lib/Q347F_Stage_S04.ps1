@@ -1,5 +1,8 @@
+. (Join-Path $ScriptDir 'lib\Q347F_SwBallProcessHoleApi.ps1')
+
 function Invoke-S04 {
     Set-StepStatus 'S04' 'RUNNING' 'S04 started'
+    Add-EmbeddedSwBallProcessHoleApiType
     Write-RunLog 'S04' 'BALL' 25 'RUNNING' 'Creating editable 12in 01_BALL.SLDPRT. The 20in source is read-only topology reference; 20in dimensions are not copied into the 12in model.'
 
     $model = $null
@@ -21,7 +24,6 @@ function Invoke-S04 {
         # IMPORTANT S04 V2 semantics:
         # UP_BRG_L / LOWER_BRG_L are the 12in bearing straight working lengths.
         # They are NOT the blind-cut depth measured from the sphere apex.
-        # The bore cut must reach the actual 12in Skeleton bearing envelope.
         $upperBearingL = Get-Param 'UP_BRG_L'
         $upperBoreBottomZ = Get-Param 'UP_BRG_Z0'
         $upperBoreTopZ = Get-Param 'UP_BRG_Z1'
@@ -32,20 +34,15 @@ function Invoke-S04 {
         Assert-Near '12in upper bearing envelope length' ($upperBoreTopZ - $upperBoreBottomZ) $upperBearingL 0.2
         Assert-Near '12in lower bearing envelope length' ($lowerBoreInnerZ - $lowerBoreOuterZ) $lowerBearingL 0.2
 
-        # Tangent-plane cut depths required to reach the designed bearing envelope.
-        # Top starts at +BALL_R and cuts downward to UP_BRG_Z0.
-        # Bottom starts at -BALL_R and cuts upward to LOWER_BRG_Z_IN.
         $upperCutDepth = $ballR - $upperBoreBottomZ
         $lowerCutDepth = $ballR + $lowerBoreInnerZ
         Assert-True ($upperCutDepth -gt $upperBearingL) 'Upper support cut must include the spherical mouth transition plus the full bearing working length.'
         Assert-True ($lowerCutDepth -gt $lowerBearingL) 'Lower support cut must include the spherical mouth transition plus the full bearing working length.'
 
-        # Deep inspection of the 20in mature source proved the drive-slot orientation:
-        # REF20 = X70 x Y112 R12. The established 12in coarse target is X44 x Y70 R8.
-        # The current parameter source historically stored those two values with L_X/W_Y labels swapped,
-        # therefore S04 V2 maps the numeric candidates explicitly until the parameter ledger is renamed.
-        $slotX = Get-Param 'BALL_DRIVE_SLOT_W_Y'   # current source value 44 -> actual X
-        $slotY = Get-Param 'BALL_DRIVE_SLOT_L_X'   # current source value 70 -> actual Y
+        # Deep inspection of the 20in reference proved the mature drive-slot orientation is X-short / Y-long.
+        # The 12in parameter ledger is now normalized directly as X44 x Y70 R8 x depth27.
+        $slotX = Get-Param 'BALL_DRIVE_SLOT_L_X'
+        $slotY = Get-Param 'BALL_DRIVE_SLOT_W_Y'
         $slotR = Get-Param 'BALL_DRIVE_SLOT_R'
         $slotDepth = Get-Param 'BALL_DRIVE_SLOT_DEPTH'
         Assert-Near '12in drive slot X candidate' $slotX 44.0 0.2
@@ -53,29 +50,57 @@ function Invoke-S04 {
         Assert-Near '12in drive slot R candidate' $slotR 8.0 0.2
         Assert-Near '12in drive slot depth candidate' $slotDepth 27.0 0.2
 
-        # Mature topology: drive slot begins at the bottom of the upper ball-bearing bore.
         $slotStartZ = $upperBoreBottomZ
         $slotEndZ = $slotStartZ - $slotDepth
 
-        # Final body Z envelope after the polar cylindrical cuts. The remaining extrema are
-        # the sphere/cylindrical-bore intersection circles, not the original +/-BALL_R apexes.
+        # 12in process-hole CAD candidates. REF20 only supplies the topology: two symmetric stepped threaded holes.
+        # These values are explicitly 12in CAD candidates and are not manufacturing-frozen.
+        $procQty = [int](Get-Param 'BALL_PROC_HOLE_QTY')
+        $procOffsetX = Get-Param 'BALL_PROC_HOLE_CENTER_OFFSET_X_CAD'
+        $procDatumZ = Get-Param 'BALL_PROC_DATUM_Z_CAD'
+        $procCounterD = Get-Param 'BALL_PROC_COUNTERBORE_D_CAD'
+        $procCounterCut = Get-Param 'BALL_PROC_COUNTERBORE_CUT_FROM_DATUM_CAD'
+        $procThreadD = Get-Param 'BALL_PROC_THREAD_D_CAD'
+        $procTapDrillD = Get-Param 'BALL_PROC_TAP_DRILL_D_CAD'
+        $procPilotCut = Get-Param 'BALL_PROC_PILOT_CUT_FROM_DATUM_CAD'
+        $procThreadDepth = Get-Param 'BALL_PROC_THREAD_DEPTH_CAD'
+
+        Assert-True ($procQty -eq 2) '12in BALL process-hole topology requires exactly 2 symmetric holes.'
+        Assert-True ($procOffsetX -gt ($upperBoreR + ($procCounterD / 2.0))) '12in process counterbores must not intersect the D105 upper support bore.'
+        Assert-True ($procCounterD -gt $procTapDrillD) '12in process-hole counterbore diameter must exceed tap-drill diameter.'
+        Assert-True ($procPilotCut -gt $procCounterCut) '12in process-hole pilot cut must be deeper than the counterbore cut.'
+
+        $procLigament = $procOffsetX - $upperBoreR - ($procCounterD / 2.0)
+        Assert-True ($procLigament -ge 5.0) ("12in process-hole radial ligament to D105 bore is too small: {0:N3} mm." -f $procLigament)
+
+        $procSphereSurfaceZ = [Math]::Sqrt([Math]::Max(0.0, ($ballR * $ballR) - ($procOffsetX * $procOffsetX)))
+        $procAirGap = [Math]::Max(0.0, $procDatumZ - $procSphereSurfaceZ)
+        $procCounterMaterialDepth = $procCounterCut - $procAirGap
+        $procPilotMaterialDepth = $procPilotCut - $procAirGap
+        Assert-True ($procCounterMaterialDepth -gt 3.0) ("12in process counterbore does not reach enough material. Effective material depth={0:N3} mm." -f $procCounterMaterialDepth)
+        Assert-True ($procPilotMaterialDepth -gt $procThreadDepth) ("12in process pilot hole is too shallow for the M{0} CAD-candidate thread depth. Effective pilot material depth={1:N3} mm; thread depth candidate={2:N3} mm." -f $procThreadD,$procPilotMaterialDepth,$procThreadDepth)
+
+        # Final body Z envelope after the polar support cuts. The off-axis process holes do not govern the global extrema.
         $upperSphereEdgeZ = [Math]::Sqrt([Math]::Max(0.0, ($ballR * $ballR) - ($upperBoreR * $upperBoreR)))
         $lowerSphereEdgeAbsZ = [Math]::Sqrt([Math]::Max(0.0, ($ballR * $ballR) - ($lowerBoreR * $lowerBoreR)))
         $expectedZMax = $upperSphereEdgeZ
         $expectedZMin = -$lowerSphereEdgeAbsZ
         $expectedZSpan = $expectedZMax - $expectedZMin
 
-        Write-RunLog 'S04' 'REF20_TOPOLOGY' 27 'PASS' '20in deep reference decoded: REF20 drive slot is X70 x Y112 R12; two D35/M20 process holes are REF20-only evidence and are intentionally NOT copied into the 12in model without a 12in process specification.'
+        Write-RunLog 'S04' 'REF20_TOPOLOGY' 27 'PASS' 'REF20 decoded as topology only: X70 x Y112 R12 drive slot and two symmetric D35/M20 stepped process holes. S04 uses separate 12in CAD candidates; no 20in dimension is copied directly.'
         Write-RunLog 'S04' 'PLAN_AUDIT' 27 'PASS' ("12in support plan: upper D{0} bearing zone Z={1:N3}..{2:N3} (L={3}); tangent cut={4:N3}; lower D{5} bearing zone Z={6:N3}..{7:N3} (L={8}); tangent cut={9:N3}." -f (Get-Param 'BALL_UPPER_BORE_D'),$upperBoreBottomZ,$upperBoreTopZ,$upperBearingL,$upperCutDepth,(Get-Param 'BALL_LOWER_BORE_D'),$lowerBoreOuterZ,$lowerBoreInnerZ,$lowerBearingL,$lowerCutDepth)
+        Write-RunLog 'S04' 'PROCESS_HOLES' 27 'PASS' ("12in CAD-candidate plan: 2X at X=+/-{0}; counterbore D{1}, datum Z={2}, total cut={3} (effective material ~{4:N3}); M{5} candidate tap drill D{6}, total cut={7} (effective material ~{8:N3}); radial ligament to D105={9:N3} mm." -f $procOffsetX,$procCounterD,$procDatumZ,$procCounterCut,$procCounterMaterialDepth,$procThreadD,$procTapDrillD,$procPilotCut,$procPilotMaterialDepth,$procLigament)
         Write-RunLog 'S04' 'PLAN_AUDIT' 27 'PASS' ("Expected final body envelope: Zmin={0:N3}, Zmax={1:N3}, Zspan={2:N3} mm." -f $expectedZMin, $expectedZMax, $expectedZSpan)
 
         $topPlane = Convert-StationName 'Z' $ballR
         $bottomPlane = Convert-StationName 'Z' (-$ballR)
         $slotPlane = Convert-StationName 'Z' $slotStartZ
+        $processPlane = Convert-StationName 'Z' $procDatumZ
         [void][Q347F.SwGeometryApi]::CreateStationPlane($model, 'Z', $ballR, $topPlane)
         [void][Q347F.SwGeometryApi]::CreateStationPlane($model, 'Z', (-$ballR), $bottomPlane)
         [void][Q347F.SwGeometryApi]::CreateStationPlane($model, 'Z', $slotStartZ, $slotPlane)
-        Write-RunLog 'S04' 'DATUMS' 27 'PASS' ("12in BALL datums: sphere top Z=+{0}, sphere bottom Z=-{0}, upper bore bottom / drive-slot start Z={1}, slot end Z={2} mm." -f $ballR, $slotStartZ, $slotEndZ)
+        [void][Q347F.SwGeometryApi]::CreateStationPlane($model, 'Z', $procDatumZ, $processPlane)
+        Write-RunLog 'S04' 'DATUMS' 27 'PASS' ("12in BALL datums: sphere top Z=+{0}, sphere bottom Z=-{0}, upper bore bottom / drive-slot start Z={1}, slot end Z={2}, process-hole datum Z={3} mm." -f $ballR,$slotStartZ,$slotEndZ,$procDatumZ)
 
         $coreName = [Q347F.SwBallApi]::CreateBallCore(
             $model,
@@ -107,7 +132,19 @@ function Invoke-S04 {
             $slotR,
             $slotDepth,
             $false)
-        Write-RunLog 'S04' 'DRIVE_SLOT' 32 'PASS' ("{0}: actual 12in geometry X{1} x Y{2} R{3} x depth {4}; Z {5:N3}->{6:N3}. Internal legacy feature name may still contain 70x44 until naming cleanup." -f $slotName,$slotX,$slotY,$slotR,$slotDepth,$slotStartZ,$slotEndZ)
+        Write-RunLog 'S04' 'DRIVE_SLOT' 32 'PASS' ("{0}: 12in geometry X{1} x Y{2} R{3} x depth {4}; Z {5:N3}->{6:N3}." -f $slotName,$slotX,$slotY,$slotR,$slotDepth,$slotStartZ,$slotEndZ)
+
+        Write-RunLog 'S04' 'PROCESS_HOLES' 32 'RUNNING' ("Creating 12in 2X stepped process holes at X=+/-{0}: D{1} counterbore + D{2} tap-drill for M{3} CAD candidate." -f $procOffsetX,$procCounterD,$procTapDrillD,$procThreadD)
+        $processNames = [Q347F.SwBallProcessHoleApi]::CreateTwoStageProcessHoles(
+            $model,
+            $processPlane,
+            $procOffsetX,
+            $procCounterD,
+            $procCounterCut,
+            $procTapDrillD,
+            $procPilotCut,
+            $false)
+        Write-RunLog 'S04' 'PROCESS_HOLES' 32 'PASS' ("12in process-hole topology created: {0}. M{1} is CAD candidate only; real Hole Wizard/cosmetic thread waits for manufacturing freeze." -f ($processNames -join ', '),$procThreadD)
 
         $lowerName = [Q347F.SwBallApi]::CreateBlindRoundCut(
             $model,
@@ -139,6 +176,8 @@ function Invoke-S04 {
             'CUT_BORE_D303',
             'CUT_UPPER_SUPPORT_BORE_D105',
             'CUT_UPPER_DRIVE_SLOT_70x44_R8',
+            'CUT_PROCESS_COUNTERBORE_2X',
+            'CUT_PROCESS_TAP_DRILL_2X',
             'CUT_LOWER_SUPPORT_BORE_D70'
         )
         foreach ($f in $required) {
@@ -155,7 +194,7 @@ function Invoke-S04 {
         Assert-Near 'BALL audit Z max after D105 support cut' $audit.ZMaxMm $expectedZMax 3.0
         Assert-Near 'BALL audit Z min after D70 support cut' $audit.ZMinMm $expectedZMin 3.0
         Assert-Near 'BALL audit Z span after support cuts' $zSpan $expectedZSpan 3.0
-        Write-RunLog 'S04' 'AUDIT' 33 'PASS' ("12in Ball: SolidBodyCount=1; body box X={0:N3}, Y={1:N3}, Z={2:N3} mm; expected post-support-cut Z={3:N3} mm." -f $xSpan,$ySpan,$zSpan,$expectedZSpan)
+        Write-RunLog 'S04' 'AUDIT' 33 'PASS' ("12in Ball: SolidBodyCount=1; body box X={0:N3}, Y={1:N3}, Z={2:N3} mm; expected post-support-cut Z={3:N3} mm; process-hole radial ligament={4:N3} mm." -f $xSpan,$ySpan,$zSpan,$expectedZSpan,$procLigament)
 
         if ($validation.WarningCount -gt 0) {
             Write-RunLog 'S04' 'WHATS_WRONG' 33 'WARN' ("BALL rebuild PASS; errors=0; warnings={0}." -f $validation.WarningCount)
@@ -164,7 +203,7 @@ function Invoke-S04 {
         }
 
         [Q347F.SwBallApi]::ApplyPresentationAppearance($model)
-        Write-RunLog 'S04' 'PRESENTATION' 33 'PASS' 'Dark customer-style appearance applied; reference planes, axes and sketches hidden for saved view.'
+        Write-RunLog 'S04' 'PRESENTATION' 33 'PASS' 'Readable neutral industrial-grey appearance applied; reference planes, axes and sketches hidden for saved view.'
 
         $saveErr = 0; $saveWarn = 0
         $stagedOk = [Q347F.SwValidationApi]::SaveAs($model, $BallStagingPath, [ref]$saveErr, [ref]$saveWarn)
