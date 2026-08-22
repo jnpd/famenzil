@@ -9,8 +9,9 @@
 "BALL_W_X" = 348mm
 "BALL_X_R" = "BALL_W_X" / 2
 "BALL_X_L" = -"BALL_W_X" / 2
-# S04 current manufacturing dimensions for the 12in BALL.
-# Corrected to match the 20in mature topology scaled/derived for the 12in design baseline.
+# S04 current CAD-draft candidate dimensions for the 12in BALL.
+# These are parametric CAD inputs, NOT automatic manufacturing-freeze dimensions.
+# φ105/φ70 follow the current interface chain; depths 30/52 and the 70x44/R8/depth27 drive slot remain CAD candidates subject to S04 validation and later manufacturing closure.
 "BALL_UPPER_BORE_D" = 105mm
 "BALL_UPPER_BORE_DEPTH" = 30mm
 "BALL_LOWER_BORE_D" = 70mm
