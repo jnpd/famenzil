@@ -70,6 +70,27 @@ namespace Q347F
             catch { return ""; }
         }
 
+        private static Feature FirstSubFeature(Feature feature)
+        {
+            if (feature == null) return null;
+            try { return feature.GetFirstSubFeature() as Feature; }
+            catch { return null; }
+        }
+
+        private static Feature NextSubFeature(Feature feature)
+        {
+            if (feature == null) return null;
+            try { return feature.GetNextSubFeature() as Feature; }
+            catch { return null; }
+        }
+
+        private static Feature NextFeature(Feature feature)
+        {
+            if (feature == null) return null;
+            try { return feature.GetNextFeature() as Feature; }
+            catch { return null; }
+        }
+
         private static void CollectDimensions(Feature f, RefFeatureInfo fi)
         {
             object current = null;
@@ -117,14 +138,12 @@ namespace Q347F
             CollectDimensions(f, fi);
             report.Features.Add(fi);
 
-            Feature sub = null;
-            try { sub = f.GetFirstSubFeature(); } catch { }
+            Feature sub = FirstSubFeature(f);
             int guard = 0;
             while (sub != null && guard++ < 500)
             {
                 CollectFeatureRecursive(sub, level + 1, f.Name, report, ref order);
-                try { sub = sub.GetNextSubFeature(); }
-                catch { break; }
+                sub = NextSubFeature(sub);
             }
         }
 
@@ -229,13 +248,13 @@ namespace Q347F
                 report.SolidBodyCount = bodyCount;
 
                 int order = 0;
-                Feature f = model.FirstFeature();
+                Feature f = null;
+                try { f = model.FirstFeature() as Feature; } catch { }
                 int guard = 0;
                 while (f != null && guard++ < 2000)
                 {
                     CollectFeatureRecursive(f, 0, "", report, ref order);
-                    try { f = f.GetNextFeature(); }
-                    catch { break; }
+                    f = NextFeature(f);
                 }
                 report.FeatureCount = report.Features.Count;
                 return report;
