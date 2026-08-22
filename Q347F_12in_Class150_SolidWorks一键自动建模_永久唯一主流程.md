@@ -1,161 +1,411 @@
-# Q347F 12寸 Class150——SolidWorks 一键自动建模永久唯一主流程
+# Q347F 12寸 Class150——SolidWorks 一键自动建模永久唯一主流程（当前统一版）
 
-> **定位**：本文件是 Q347F 12寸 / NPS12 / DN300 / Class150 固定球阀 SolidWorks 自动建模的**永久唯一总流程**。  
-> 后续所有 `Build_Q347F_12in*.ps1`、内嵌 C#、SolidWorks COM API、日志、进度条、断点续跑、零件构建器和总装构建器，都必须服从本流程。  
-> 如果其他文档、旧脚本或旧宏与本流程冲突，以本流程和当前数字化总账为准。
+> **定位**：本文件是 Q347F / NPS12 / DN300 / Class150 固定球阀 SolidWorks 自动建模的**永久唯一执行主流程**。  
+> 后续所有 BAT、PowerShell、内嵌C#、SolidWorks COM API、零件构建器、总装构建器、日志、断点续跑和验证都服从本文。  
+> **当前实机里程碑**：`S00 PASS / S01 PASS / S02 PASS / S03 PASS`；`00_SKELETON.SLDPRT` 已通过世界坐标回读、Rebuild、What's Wrong 后发布。  
+> **当前下一步**：S04 BALL。S04～S12 尚未宣布实机 PASS。
+
+[← 总导航](./00_Q347F_12in_Class150_文档导航_从这里开始.md)  
+[← 当前数字总账](./Q347F_12in_Class150_数字化总装骨架_尺寸参数_装配关系_空间坐标总账.md)  
+[← V42 参数交付](./Q347F_12in_Class150_第7L步_SolidWorks全局变量交付版_当前CAD_D门与HR隔离_V42.md)  
+[← V43 Skeleton实机规则](./Q347F_12in_Class150_第7M步_SolidWorks_Skeleton手工稳定建模顺序_宏自动化边界_V43.md)
 
 ---
 
-# 1. 最终用户入口
+# 1. 用户唯一入口
 
-最终目标不是让用户逐个运行脚本，而是只保留一个入口：
-
-```text
-双击：
-一键生成12寸Q347F.bat
-```
-
-该入口启动：
+正式入口：
 
 ```text
-Build_Q347F_12in.ps1
+SolidWorks_AutoBuild_Q347F_12in/一键生成12寸Q347F.bat
 ```
 
-主技术路线永久采用：
+调用：
+
+```text
+01_scripts/Build_Q347F_12in.ps1
+```
+
+永久技术路线：
 
 ```text
 Windows BAT
 ↓
-PowerShell .ps1
+Windows PowerShell 5.1
 ↓
-内嵌 C#
+模块化 PowerShell 总控
+↓
+内嵌 C# SolidWorks Adapter
 ↓
 SolidWorks COM API
 ↓
 SOLIDWORKS 2025
 ```
 
-VBA 宏只允许用于单零件调试、API试验和诊断，不再作为正式一键构建主入口。
+VBA：
+
+```text
+只用于API试验 / 单零件诊断 / 人工辅助
+不作为正式一键构建主路线
+```
 
 ---
 
-# 2. 永久唯一自动建模主流程
+# 2. 永久S00～S12构建链
 
 ```text
-双击：
-一键生成12寸Q347F.bat
-        ↓
-启动 Build_Q347F_12in.ps1
-        ↓
-连接 / 启动 SolidWorks 2025
-        ↓
-读取12寸参数
-        ↓
-自动建 Skeleton
-        ↓
-自动建球体
-        ↓
-自动建阀座
-        ↓
-自动建 BODY
-        ↓
-自动建 BODY_COVER
-        ↓
-自动建前盖
-        ↓
-自动建底盖
-        ↓
-自动建阀杆
-        ↓
-自动建连接盘
-        ↓
-自动生成 SLDASM
-        ↓
-自动配合
-        ↓
-Rebuild
-        ↓
-What's Wrong 检查
-        ↓
-干涉检查
-        ↓
-保存全部文件
-        ↓
-输出日志 / 进度 / 汇总报告
+S00 环境预检查
+↓
+S01 参数读取 / 解析 / 工程逻辑检查
+↓
+S02 连接或启动 SOLIDWORKS 2025
+↓
+S03 创建并验证 00_SKELETON.SLDPRT
+↓
+S04 创建 01_BALL.SLDPRT
+↓
+S05 创建左右 SEAT
+↓
+S06 创建 BODY
+↓
+S07 创建 BODY_COVER
+↓
+S08 创建 STEM / STEM_COVER / BOTTOM_COVER
+↓
+S09 创建 ADAPTER / F25接口
+↓
+S10 创建 SLDASM / 自动配合
+↓
+S11 Rebuild / What's Wrong / Feature Error / 干涉 / 关键间隙
+↓
+S12 保存 / 发布 / 汇总报告
 ```
 
-这条链以后不得随意改变顺序。
-
-如果后续新增：
-
-```text
-标准件
-轴承
-O形圈
-缠绕垫
-弹簧
-螺柱
-螺母
-排污阀
-放空阀
-注脂阀
-蜗轮箱
-```
-
-应插入对应零件/总装阶段，不改变上面核心主线。
+这条核心顺序不随意改变。
 
 ---
 
-# 3. 为什么必须先 Skeleton
+# 3. 当前真实开发状态
 
-任何实体零件都不得先于 Skeleton 成为全局尺寸源。
+| Step | 内容 | 当前状态 |
+|---|---|---|
+| S00 | 环境预检查 | **PASS** |
+| S01 | 参数读取与校验 | **PASS** |
+| S02 | SolidWorks 2025连接 | **PASS** |
+| S03 | Skeleton | **PASS** |
+| S04 | BALL | **WAITING / 下一实施** |
+| S05 | SEAT | WAITING |
+| S06 | BODY | WAITING |
+| S07 | BODY_COVER | WAITING |
+| S08 | STEM / STEM_COVER / BOTTOM_COVER | WAITING |
+| S09 | ADAPTER / F25 | WAITING |
+| S10 | Assembly | WAITING |
+| S11 | 完整验证 | WAITING |
+| S12 | 发布/报告 | WAITING |
 
-Skeleton 必须统一保存：
-
-```text
-球心 O=(0,0,0)
-X = FLOW_AXIS
-Z = SUPPORT_AXIS
-F2F=610
-端面 X=±305
-球体包络 φ465
-流道 φ303
-BODY / BODY_COVER主分界 X=+232.5 CAD
-上前盖BODY安装面 Z≈+264.5 CAD
-下底盖BODY安装面 Z≈-270.5 CAD
-F25接口面 Z≈+337.3 CAD
-阀杆顶部 Z≈+430 CAD
-```
-
-零件尽量从 Skeleton 引用基准和参数，而不是彼此互相引用，避免循环依赖。
+**禁止用“设计文档已经有尺寸”冒充对应自动构建 Step 已 PASS。**
 
 ---
 
-# 4. 核心零件生成顺序
+# 4. 数据权威链
 
-## 4.1 Skeleton
+自动化不能自己决定设计尺寸。
+
+永久权威链：
+
+```text
+项目输入 / 标准 / 公司规则
+↓
+设计计算主线
+↓
+数字化总装总账
+↓
+Q347F_12in_Class150_00_SKELETON_GlobalVariables_V1.txt
+↓
+S01参数快照
+↓
+SolidWorks
+```
+
+参数txt是当前CAD执行输入，不是完整工程计算书。
+
+状态权限：
+
+```text
+A / A-policy / B / C+ / C
+→ 按当前规则可进入CAD草模
+
+D / H / H-R / 未关闭R
+→ 禁止自动写死
+```
+
+CAD候选不等于制造冻结。
+
+---
+
+# 5. S00——环境预检查
+
+必须检查：
+
+```text
+Windows
+64-bit PowerShell Desktop
+构建锁
+build_config.json
+SolidWorks 2025安装/可发现路径
+SolidWorks.Interop.sldworks.dll
+SolidWorks.Interop.swconst.dll
+输出目录可写
+磁盘空间
+所有PowerShell脚本Parser预检
+内嵌C#可编译
+```
+
+当前安装路径允许配置，例如：
+
+```text
+C:\Program Files\sw2025\SOLIDWORKS Corp 2025\SOLIDWORKS
+```
+
+路径规则：
+
+```text
+显式exePath
+↓
+installDir\SLDWORKS.exe
+↓
+自动发现fallback
+```
+
+换机器只改配置，不改主程序。
+
+---
+
+# 6. S01——参数读取与工程校验
+
+当前唯一参数源：
+
+```text
+Q347F_12in_Class150_00_SKELETON_GlobalVariables_V1.txt
+```
+
+每次运行保存：
+
+```text
+parameters_snapshot.txt
+SHA256
+```
+
+必须检查至少：
+
+```text
+VALVE_F2F=610
+BORE_D=303
+BALL_OD=465
+BALL_R=232.5
+X_BODY_JOINT_CAD=232.5
+MAIN_OPENING_D=480
+MID_GASKET_OD=500
+MID_BCD_CAD=526.5
+UP_BRG_OD=105
+LOWER_BRG_OD=70
+Z_BODY_TOP_IF_CAD=264.5
+Z_BODY_BOTTOM_IF_CAD=-270.5
+F25_BOLT_PCD=254
+Z_STEM_TOP_CAD=430
+```
+
+逻辑校验：
+
+```text
+480 > 465
+610/2 = 305
+500 > 490
+105 > 100
+70 > 65
++264.5 > 0
+-270.5 < 0
+```
+
+矛盾时 `BLOCKED`，禁止继续。
+
+---
+
+# 7. S02——SolidWorks 2025连接
+
+行为：
+
+```text
+优先尝试附着已运行的SolidWorks实例
+↓
+无可用实例则通过ProgID启动
+↓
+检查 RevisionNumber
+↓
+必须为SW2025对应33.x
+↓
+解析Part模板
+```
+
+Interop DLL必须显式加载/可解析，避免“编译成功但运行时找不到StrongName程序集”。
+
+PowerShell与COM边界规则：
+
+> PowerShell负责总控，SolidWorks强类型COM转换尽量留在内嵌C#中，避免 `System.__ComObject` 被 PowerShell Binder 强转为 `SldWorks/ModelDoc2` 失败。
+
+当前实机：
+
+```text
+Revision=33.5.0
+模板=C:\ProgramData\SolidWorks\SOLIDWORKS 2025\templates\gb_part.prtdot
+S02 PASS
+```
+
+---
+
+# 8. S03——Skeleton永久定义
 
 输出：
+
+```text
+02_output/00_SKELETON.SLDPRT
+```
+
+必须保存：
+
+```text
+O=(0,0,0)
+X=FLOW_AXIS
+Y=CROSS_AXIS
+Z=SUPPORT_AXIS
+F2F=610
+BALL φ465
+BORE φ303
+BODY外包络 φ504 CAD
+MID FLANGE φ562.5 CAD
+F25 φ300 CAD
+```
+
+X站位：
+
+```text
+-305, -273.2, -232.5, -174, -166.036,
+0,
++166.036, +174, +232.5, +273.2, +305
+```
+
+Z站位：
+
+```text
+-289.1, -270.5, -230, -227, -177,
+0,
++193.6, +223.6, +226.9, +264.5,
++300, +313.3, +337.3, +339.8, +429.8, +430
+```
+
+---
+
+# 9. SolidWorks原生平面永久规则
+
+禁止硬编码：
+
+```text
+Front=XZ
+Top=XY
+Right=YZ
+```
+
+正确：
+
+```text
+读取原生RefPlane真实世界几何
+↓
+识别XY / XZ / YZ
+↓
+建立项目语义面
+```
+
+项目只长期认：
+
+```text
+PLN_BASE_XY_FLOW_CROSS
+PLN_BASE_XZ_FLOW_SUPPORT
+PLN_BASE_YZ_CROSS_SUPPORT
+AXIS_X_FLOW
+AXIS_Z_SUPPORT
+SK_PT_BALL_CENTER_O
+```
+
+这条规则已由 S03 实机纠错并验证。
+
+---
+
+# 10. S03为什么是真PASS而不是“文件保存了”
+
+当前实机结果：
+
+```text
+X站位世界坐标回读 = 11/11 PASS
+Z站位世界坐标回读 = 16/16 PASS
+RefPlaneCount=33
+RefAxisCount=2
+ForceRebuild PASS
+Feature errors=0
+What's Wrong errors=0
+warnings=0
+```
+
+最终才发布：
 
 ```text
 00_SKELETON.SLDPRT
 ```
 
-作用：
+所以成功标准永久是：
 
 ```text
-统一原点
-统一X/Z轴
-统一关键基准面
-统一包络
-统一参数入口
+CREATE
++
+独立几何READBACK
++
+REBUILD
++
+FEATURE ERROR
++
+WHAT'S WRONG
++
+SAVE/PUBLISH
 ```
 
-Skeleton失败，整个构建立即停止。
+而不是“API返回一个Feature对象”就算成功。
 
 ---
 
-## 4.2 球体 BALL
+# 11. EquationMgr永久实现规则
+
+当前已实机解决：
+
+```text
+单配置新Part的全局变量导入路径
+Add2 / Add3场景区别
+角度deg参数规范化
+COM对象强类型边界
+```
+
+当前参数txt可以保留工程可读单位语义；导入器负责转换为 SolidWorks 接受的表达。
+
+不要在零件特征树还不存在时预先写死：
+
+```text
+D1@Sketch7
+D2@Boss-Extrude14
+```
+
+第一阶段以 Global Variables 为主，具体零件构建器再创建自己的命名特征。
+
+---
+
+# 12. S04 BALL——下一实施阶段
 
 输出：
 
@@ -163,198 +413,172 @@ Skeleton失败，整个构建立即停止。
 01_BALL.SLDPRT
 ```
 
-第一版必须包含：
+主结构：
 
 ```text
-φ465球面
-φ303流道
-X向总宽348
-上孔φ105
-下孔φ70
-阀杆驱动接口
+BALL_OD=465
+BORE_D=303
+BALL_W_X=348
+BALL_UPPER_BORE_D=105
+BALL_LOWER_BORE_D=70
 ```
 
-球体是内部装配的核心运动/密封基准，BALL失败后禁止继续进入最终总装。
+当前CAD草模候选：
+
+```text
+UPPER_BORE_DEPTH=30
+LOWER_BORE_DEPTH=52
+DRIVE_SLOT=70×44
+R8
+DEPTH=27
+```
+
+这些值可进入 S04 第一版模型，但必须标记：
+
+```text
+CAD_DRAFT
+≠ MANUFACTURING_FREEZE
+```
+
+S04 PASS条件至少：
+
+```text
+模型创建成功
+φ465回读
+φ303回读
+宽348回读
+φ105/φ70孔径回读
+驱动接口存在
+ForceRebuild PASS
+Feature errors=0
+What's Wrong errors=0
+保存成功
+```
 
 ---
 
-## 4.3 左右阀座 SEAT
+# 13. S05 SEAT
 
-输出建议：
+输出可以是左右独立装配对象或参数化共用零件的左右实例。
+
+关键：
 
 ```text
-02_LEFT_SEAT.SLDASM
-03_RIGHT_SEAT.SLDASM
+D9=323.88
+D10=327.13
+D11=342
+Guide=342.4
+Pilot2=323.6
+Guide2=323.8
+Big OD=380
+Big Bore=382
+Spring PCD=362
+X_CONTACT=±166.036
 ```
 
-或共用参数化零件后在总装中左右实例化。
-
-必须验证：
+验证：
 
 ```text
-左右方向
-球面接触位置
-导向关系
-轴向浮动空间
-弹簧方向
+左右方向正确
+真实球面接触位置正确
+导向正确
+轴向浮动空间存在
+无镜像错误
 ```
 
 ---
 
-## 4.4 主阀体 BODY
+# 14. S06 BODY
 
-输出：
-
-```text
-07_BODY.SLDPRT
-```
-
-第一版至少创建：
+至少创建：
 
 ```text
-NPS12 Class150 RF端
+左NPS12 Class150 RF端
 φ303流道
-中央球腔
-左右阀座功能腔
-BODY中央承压外包络
+φ471功能球腔CAD
+φ504中央外包络CAD
+左右SEAT功能腔
 φ480主拆装口
 主中法兰
-20×M20螺纹锚固孔
-上前盖接口
-下底盖接口
-VENT Boss
-DRAIN Boss
+20×M20 BODY锚固孔
+上φ105接口
+下φ70接口
+VENT / DRAIN Boss
 ```
 
-BODY 是第一版自动建模中日志最详细的零件之一。
+BODY是关键承压零件，必须把“CAD创建成功”和“最终承压制造冻结”分开。
 
 ---
 
-## 4.5 侧装主阀盖 BODY_COVER
+# 15. S07 BODY_COVER
 
-输出：
-
-```text
-08_BODY_COVER.SLDPRT
-```
-
-必须包含：
+至少：
 
 ```text
 φ480 f8凸止口
-φ466×7主O圈槽
-φ500×φ490×3.2缠绕垫接口
-20×φ22通孔 / 对应螺母支承区
-右侧NPS12 Class150 RF端
-内部φ382→φ303过渡
+φ466×7径向O圈槽
+φ500×φ490×3.2垫片接口
+20×φ22通孔 / 螺母支承区
+右NPS12 Class150 RF端
+φ382→φ303内过渡
 ```
 
-必须验证：
+验证：
 
 ```text
-BALL φ465能通过φ480主拆装口
-BODY H8 / BODY_COVER f8关系正确
+BALL φ465可通过φ480
+H8/f8定位逻辑正确
 O圈槽不切穿
-垫片与螺栓圈不冲突
+垫片/螺栓圈不冲突
 ```
 
 ---
 
-## 4.6 前盖 STEM_COVER
+# 16. S08 Z向零件
 
-输出：
+包括：
 
 ```text
-04_STEM_COVER.SLDPRT
+STEM
+STEM_COVER
+BOTTOM_COVER
 ```
 
-必须建立：
+关键语义：
 
 ```text
-φ100上支承轴颈
+STEM_COVER一体φ100上支承轴
 φ105定位Boss
-阀杆导向轴承轨
-O圈轨
-填料轨
-BODY安装端面
-上部连接接口
-```
+BODY安装面Z≈+264.5
 
----
-
-## 4.7 底盖 BOTTOM_COVER
-
-输出：
-
-```text
-06_BOTTOM_COVER.SLDPRT
-```
-
-必须建立：
-
-```text
-一体φ65下支承轴颈
+BOTTOM_COVER一体φ65下支承轴
 φ70定位Boss
-φ58×5.3 AED O圈槽候选
-φ80×φ70×3.2垫片接口
-6×M12×55连接区
-```
+BODY安装面Z≈-270.5
 
-下支承轴颈不得错误拆成独立零件，除非12寸正式图纸后续明确反证。
+STEM主径≈65
+键轴≈60
+18×11×90单键设计
+```
 
 ---
 
-## 4.8 阀杆 STEM
+# 17. S09 ADAPTER/F25
 
-输出：
-
-```text
-05_STEM.SLDPRT
-```
-
-第一版：
+当前CAD方案：
 
 ```text
-主径φ65
-上键轴φ60
-防吹出台肩≈φ74
-18×11×90键槽
-顶部Z≈+430 CAD
-```
-
-强度设计按：
-
-```text
-单键承担100% 1800 N·m
-```
-
-不能依赖双键均分扭矩。
-
----
-
-## 4.9 连接盘 ADAPTER
-
-输出：
-
-```text
-09_ADAPTER.SLDPRT
-```
-
-当前CAD主方案：
-
-```text
-ISO 5211 F25
-OD≈φ300
-PCD φ254
+OD≈300
+T≈24
+PCD254
 8×M16
-接口面Z≈+337.3
+Z_F25≈337.3
 ```
 
-厂家蜗轮箱正式图未关闭前，F25属于CAD主方案，不等于采购接口最终冻结。
+厂家蜗轮箱正式接口未关闭前，不能升级为采购冻结。
 
 ---
 
-# 5. 自动生成总装
+# 18. S10自动总装
 
 输出：
 
@@ -362,335 +586,221 @@ PCD φ254
 12-Q347F-150LB-总装图.SLDASM
 ```
 
-总装自动插入顺序建议：
+优先插入：
 
 ```text
 BODY
-↓
 BALL
-↓
-LEFT SEAT
-↓
-RIGHT SEAT
-↓
+SEAT L/R
 BODY_COVER
-↓
 STEM_COVER
-↓
 BOTTOM_COVER
-↓
 STEM
-↓
 ADAPTER
-↓
-标准件 / 密封件 / 轴承 / 紧固件
+标准件 / 密封 / 轴承 / 紧固件
 ```
 
-BODY作为总装基础件固定。
-
----
-
-# 6. 自动配合原则
-
-优先使用：
+装配约束必须依赖稳定语义：
 
 ```text
-统一Skeleton坐标
+项目轴
+项目基准面
+命名接口
 同轴
 端面重合
-基准面重合
-限定轴向距离
+限定距离
 ```
 
-禁止依赖：
+禁止长期依赖随机：
 
 ```text
 Face1
 Face2
 Edge7
-随机拓扑ID
-```
-
-因为零件参数变化后实体面ID可能改变。
-
-关键装配关系：
-
-```text
-BALL_CENTER = Origin
-BALL_FLOW_AXIS = X
-BALL_SUPPORT_AXIS = Z
-
-BODY_COVER φ480止口 ↔ BODY φ480主口
-STEM_COVER φ105Boss ↔ BODY上接口
-BOTTOM_COVER φ70Boss ↔ BODY下接口
-STEM ↔ BALL驱动接口
-ADAPTER ↔ STEM_COVER / STEM上部
 ```
 
 ---
 
-# 7. Rebuild不是最终成功
+# 19. S11验证
 
-每个零件、总装都必须经过：
+自动验证至少包括：
 
 ```text
-Create Feature
-↓
 ForceRebuild
-↓
-Feature Error检查
-↓
-What's Wrong检查
-↓
-尺寸读回检查
-↓
-保存
-```
-
-因此必须永久区分：
-
-```text
-CREATE_PASS
-REBUILD_PASS
-ENGINEERING_PASS
-MANUFACTURING_FREEZE
-```
-
-例如：
-
-```text
-BODY
-CREATE_PASS          = YES
-REBUILD_PASS         = YES
-ENGINEERING_PASS     = PRELIMINARY
-MANUFACTURING_FREEZE = NO
-```
-
-“能画出来”不等于“可以生产”。
-
----
-
-# 8. What's Wrong 与干涉检查
-
-总装完成后必须自动执行：
-
-```text
-Rebuild
-↓
 What's Wrong
-↓
-Feature Errors
-↓
+Feature Error
 Interference Detection
-↓
-关键间隙检查
-↓
-装配路径检查
+关键尺寸回读
+关键间隙
+装配路径
+运动方向
 ```
 
-重点检查：
+重点：
 
 ```text
-φ465 BALL是否能通过φ480主拆装口
-左右阀座是否和球面正确接触
-BODY_COVER止口是否装得进去
-主O圈槽是否有足够金属余量
-M20圈与缠绕垫是否冲突
-前盖/底盖Boss是否碰球体或轴承
-阀杆防吹出台肩是否导致错误装配方向
-F25连接盘是否和前盖/阀杆干涉
+BALL通过φ480
+SEAT与球面接触
+BODY_COVER止口可装入
+主O圈槽金属余量
+M20圈与垫片不冲突
+上下Boss不碰球体/轴承
+阀杆防吹出方向正确
+F25与阀杆/前盖不干涉
 ```
 
-发现硬干涉：
+---
+
+# 20. S12保存 / 发布 / 报告
+
+正式运行保留：
 
 ```text
+参数快照
+参数SHA256
+staging模型
+上一版成功模型备份
+本次发布模型
+build.log
+summary.json
+错误/验证汇总
+```
+
+禁止：
+
+```text
+构建失败后覆盖上一版PASS模型
+```
+
+---
+
+# 21. staging → validate → publish
+
+所有关键零件建议统一：
+
+```text
+创建到staging
+↓
+验证
+↓
+PASS
+↓
+备份current
+↓
+publish
+```
+
+S03已经实际采用：
+
+```text
+03_backup/run_xxx/00_SKELETON_staging.SLDPRT
+↓
+02_output/00_SKELETON.SLDPRT
+```
+
+后续零件沿用同样机制。
+
+---
+
+# 22. 日志状态永久只认
+
+```text
+WAITING
+RUNNING
+PASS
+WARN
 FAIL
-停止最终成功状态
+BLOCKED
+SKIP（仅明确配置允许）
+```
+
+失败默认停止。
+
+禁止：
+
+```text
+API失败后静默跳过
+红叉特征仍写PASS
+D参数自动填0继续
 ```
 
 ---
 
-# 9. 保存要求
+# 23. 断点续跑
 
-正式运行必须保留：
-
-```text
-源文件备份
-构建前参数快照
-本次生成SLDPRT
-本次生成SLDASM
-日志
-错误报告
-干涉报告
-最终汇总
-```
-
-不得：
+入口支持：
 
 ```text
-构建失败后覆盖上一版成功模型
+一键生成12寸Q347F.bat resume
 ```
 
-建议使用：
+状态文件：
 
 ```text
-03_backup\run_xxx\
-02_output\current\
-04_logs\run_xxx\
+02_output/build_state.json
 ```
+
+必须结合：
+
+```text
+Step状态
+参数SHA256
+已有发布模型
+依赖关系
+```
+
+如果 Skeleton 参数发生变化，后续依赖件必须标记 `STALE` 并重建。
 
 ---
 
-# 10. 日志与实时进度是主流程的一部分
-
-日志不是附加功能。
-
-从第一版脚本开始必须同步存在：
+# 24. 本轮已经实际解决的自动化问题
 
 ```text
-当前Step
-当前零件
-当前Feature
-总进度%
-状态
-耗时
-API结果
-错误码
-下一步
+PowerShell变量冒号Parser错误
+CMD中文乱码
+SolidWorks自定义安装路径
+Interop DLL运行时装载
+PowerShell System.__ComObject强类型转换
+EquationMgr Add2/Add3场景
+角度deg表达
+原生Front/Top/Right错误映射
+RefPlane坐标回读错误
+失败覆盖成功模型风险
+重复从头执行问题
 ```
 
-例如：
-
-```text
-[13:25:12][S06][BODY][49%][RUNNING] Creating MAIN_OPENING Ø480
-[13:25:16][S06][BODY][50%][PASS] MAIN_OPENING created
-[13:25:18][S06][BODY][51%][RUNNING] Creating 20×M20 threaded holes
-```
-
-详细规范统一见：
-
-```text
-Q347F_12in_Class150_SolidWorks自动执行总控_步骤_日志_进度规范_V1.md
-```
+这些属于自动化实现问题，没有证据要求因此推翻现有核心设计计算值。
 
 ---
 
-# 11. 断点续跑
+# 25. 最终定义
 
-正式总控脚本必须支持：
-
-```powershell
-Build_Q347F_12in.ps1 -Resume
-```
-
-例如：
+本项目的一键自动建模不是：
 
 ```text
-S00 PASS
-S01 PASS
-S02 PASS
-S03 PASS
-S04 PASS
-S05 PASS
-S06 FAIL
-```
-
-修复后：
-
-```text
-从S06恢复
-```
-
-而不是每次从头重新生成所有文件。
-
-但若Skeleton参数版本发生变化：
-
-```text
-所有依赖Skeleton的后续零件必须标记STALE并重新构建
-```
-
----
-
-# 12. 当前开发原则
-
-自动化开发不采用“一次写完44个零件”。
-
-永久阶段：
-
-```text
-阶段1
-一键入口 + 日志 + 参数 + SolidWorks连接
-↓
-阶段2
-Skeleton
-↓
-阶段3
-BALL
-↓
-阶段4
-SEAT
-↓
-阶段5
-BODY
-↓
-阶段6
-BODY_COVER
-↓
-阶段7
-Z向零件
-↓
-阶段8
-ADAPTER
-↓
-阶段9
-SLDASM
-↓
-阶段10
-标准件 + 完整验证
-```
-
-每一阶段只有在：
-
-```text
-CREATE PASS
-+
-REBUILD PASS
-+
-日志完整
-```
-
-之后才能进入下一阶段。
-
----
-
-# 13. 最终一句话定义
-
-本项目的自动建模不是：
-
-```text
-AI直接生成一个3D外形
+AI生成一个看起来像阀门的3D外形
 ```
 
 而是：
 
 ```text
-数字化设计总账
+工程计算
 ↓
-参数文件
+数字总账
 ↓
-PowerShell + C#
+受控CAD参数
 ↓
-SolidWorks COM API
+PowerShell + C# + COM API
 ↓
 真实SLDPRT / SLDASM特征树
 ↓
-自动装配
+独立几何回读
 ↓
-自动重建
+Rebuild / What's Wrong / 干涉
 ↓
-自动检查
+staging / backup / publish
 ↓
-可追溯日志
+可追溯日志与报告
 ```
 
-这条路线从本文件起作为 **Q347F 12寸 Class150 SolidWorks自动建模永久唯一主流程**。
+**当前已经把这条链真实跑通到 S03 Skeleton；下一步只推进 S04 BALL。**
