@@ -35,7 +35,7 @@ function Invoke-S00 {
         (Join-Path $env:ProgramFiles 'SOLIDWORKS Corp\SOLIDWORKS 2025\SLDWORKS.exe')
     )
     if (-not $script:SldworksExe) { $script:SldworksExe = Find-SolidWorksFile 'SLDWORKS.exe' }
-    Assert-True (-not [string]::IsNullOrWhiteSpace($script:SldworksExe)) 'BLOCKED: SLDWORKS.exe was not found under Program Files\SOLIDWORKS Corp.'
+    Assert-True (-not [string]::IsNullOrWhiteSpace($script:SldworksExe)) 'BLOCKED: SLDWORKS.exe could not be resolved from build_config.json or automatic discovery.'
     Write-RunLog 'S00' 'SW2025' 2 'PASS' ("SLDWORKS.exe={0}" -f $script:SldworksExe)
 
     $apiRedist = Join-Path (Split-Path -Parent $script:SldworksExe) 'api\redist'
@@ -58,6 +58,10 @@ function Invoke-S00 {
     Assert-True ($sldAsmVer.Major -eq $RequiredSwMajorRevision) ("BLOCKED: sldworks interop major version is {0}; expected {1} for SOLIDWORKS 2025." -f $sldAsmVer.Major, $RequiredSwMajorRevision)
     Assert-True ($constAsmVer.Major -eq $RequiredSwMajorRevision) ("BLOCKED: swconst interop major version is {0}; expected {1} for SOLIDWORKS 2025." -f $constAsmVer.Major, $RequiredSwMajorRevision)
     Write-RunLog 'S00' 'INTEROP' 4 'PASS' ("Interop versions: sldworks={0}, swconst={1}" -f $sldAsmVer, $constAsmVer)
+
+    $interopLoad = Initialize-SolidWorksInteropAssemblies -SldworksPath $script:InteropSldworks -SwconstPath $script:InteropSwconst
+    Write-RunLog 'S00' 'CLR' 4 'PASS' ("Loaded {0} from {1}" -f $interopLoad.SldworksFullName, $interopLoad.SldworksLocation)
+    Write-RunLog 'S00' 'CLR' 4 'PASS' ("Loaded {0} from {1}" -f $interopLoad.SwconstFullName, $interopLoad.SwconstLocation)
 
     $probe = Join-Path $OutputRoot (".__write_probe_{0}.tmp" -f $RunId)
     'ok' | Set-Content -LiteralPath $probe -Encoding ASCII
@@ -82,7 +86,7 @@ function Invoke-S00 {
     Add-EmbeddedSwEquationApiType
     Add-EmbeddedSwGeometryApiType
     Add-EmbeddedSwValidationApiType
-    Write-RunLog 'S00' 'CSHARP' 5 'PASS' ("Embedded C# compiled. ScriptVersion={0}" -f $ScriptVersion)
+    Write-RunLog 'S00' 'CSHARP' 5 'PASS' ("Embedded C# compiled after CLR interop preload. ScriptVersion={0}" -f $ScriptVersion)
     Set-StepStatus 'S00' 'PASS' 'S00 PASS'
 }
 
@@ -162,13 +166,15 @@ function Invoke-S02 {
         throw "BLOCKED: connected SOLIDWORKS revision is $($session.Revision); expected SOLIDWORKS 2025 major revision $RequiredSwMajorRevision.x."
     }
 
-    $template = [Q347F.SwSessionApi]::GetDefaultPartTemplate($script:SwApp)
-    Assert-True (-not [string]::IsNullOrWhiteSpace($template)) 'BLOCKED: SOLIDWORKS default Part template is not configured.'
-    Assert-True (Test-Path -LiteralPath $template) ("BLOCKED: default Part template does not exist: {0}" -f $template)
+    $template = Get-Q347FConfiguredPartTemplate
+    if ([string]::IsNullOrWhiteSpace($template)) {
+        $template = [Q347F.SwSessionApi]::GetDefaultPartTemplate($script:SwApp)
+    }
+    Assert-True (-not [string]::IsNullOrWhiteSpace($template)) 'BLOCKED: SOLIDWORKS default Part template is not configured and build_config.json templates.partTemplatePath is empty.'
+    Assert-True (Test-Path -LiteralPath $template) ("BLOCKED: Part template does not exist: {0}" -f $template)
     $script:PartTemplate = $template
-    Write-RunLog 'S02' 'TEMPLATE' 14 'PASS' ("Default Part template={0}" -f $template)
+    Write-RunLog 'S02' 'TEMPLATE' 14 'PASS' ("Part template={0}" -f $template)
 
     Write-RunLog 'S02' 'SW2025' 15 'PASS' 'ISldWorks connection is valid and ready for S03.'
     Set-StepStatus 'S02' 'PASS' 'S02 PASS'
 }
-
