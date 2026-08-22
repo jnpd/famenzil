@@ -55,7 +55,9 @@ function Invoke-S00 {
     Assert-True ($constAsmVer.Major -eq $RequiredSwMajorRevision) ("BLOCKED: swconst interop major version is {0}; expected {1} for SOLIDWORKS 2025." -f $constAsmVer.Major, $RequiredSwMajorRevision)
     Write-RunLog 'S00' 'INTEROP' 4 'PASS' ("Interop versions: sldworks={0}, swconst={1}" -f $sldAsmVer, $constAsmVer)
 
-    Initialize-SolidWorksInteropAssemblies
+    $interopLoad = Initialize-SolidWorksInteropAssemblies -SldworksPath $script:InteropSldworks -SwconstPath $script:InteropSwconst
+    Write-RunLog 'S00' 'CLR' 4 'PASS' ("Loaded {0} from {1}" -f $interopLoad.SldworksFullName, $interopLoad.SldworksLocation)
+    Write-RunLog 'S00' 'CLR' 4 'PASS' ("Loaded {0} from {1}" -f $interopLoad.SwconstFullName, $interopLoad.SwconstLocation)
 
     $probe = Join-Path $OutputRoot (".__write_probe_{0}.tmp" -f $RunId)
     'ok' | Set-Content -LiteralPath $probe -Encoding ASCII
