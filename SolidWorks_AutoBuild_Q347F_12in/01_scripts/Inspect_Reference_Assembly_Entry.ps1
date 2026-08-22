@@ -8,7 +8,7 @@ $ErrorActionPreference = 'Stop'
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $AutoRoot = Split-Path -Parent $ScriptDir
-$Inner = Join-Path $ScriptDir 'Inspect_Reference_Assembly_V2.ps1'
+$Inner = Join-Path $ScriptDir 'Inspect_Reference_Assembly_V3.ps1'
 
 $SourcePath = [Environment]::ExpandEnvironmentVariables($SourcePath)
 if (-not (Test-Path -LiteralPath $SourcePath)) { throw "Source not found: $SourcePath" }
@@ -45,45 +45,32 @@ else {
 if (-not $rootAssembly) {
     $assemblies = @(Get-ChildItem -LiteralPath $scanRoot -Recurse -File -Filter '*.SLDASM')
     if ($assemblies.Count -eq 0) { throw "No .SLDASM files found under: $scanRoot" }
-
     $familyRoots = @(
         $assemblies |
         Where-Object { $_.BaseName -match '^20Q347F-300LB(?!-\d)' } |
         Sort-Object @{Expression={ $_.Name.Length }}, @{Expression={ $_.FullName.Length }}
     )
-
-    if ($familyRoots.Count -gt 0) {
-        $rootAssembly = $familyRoots[0].FullName
-    }
-    else {
-        $rootAssembly = ($assemblies | Sort-Object @{Expression={ ($_.FullName -split '[\\/]').Count }}, @{Expression={ $_.Name.Length }} | Select-Object -First 1).FullName
-    }
+    if ($familyRoots.Count -gt 0) { $rootAssembly = $familyRoots[0].FullName }
+    else { $rootAssembly = ($assemblies | Sort-Object @{Expression={ ($_.FullName -split '[\\/]').Count }}, @{Expression={ $_.Name.Length }} | Select-Object -First 1).FullName }
 }
 
 Write-Host ("[A00][PASS] Root assembly selected: {0}" -f $rootAssembly) -ForegroundColor Green
 
 if ($isExtractedZip) {
     $rootDir = Split-Path -Parent $rootAssembly
-    $extraRoots = @(
-        Get-ChildItem -LiteralPath $rootDir -File -Filter '*.SLDASM' |
-        Where-Object {
-            $_.FullName -ine $rootAssembly -and
-            $_.BaseName -match '^20Q347F-300LB(?!-\d)'
-        }
-    )
+    $extraRoots = @(Get-ChildItem -LiteralPath $rootDir -File -Filter '*.SLDASM' | Where-Object { $_.FullName -ine $rootAssembly -and $_.BaseName -match '^20Q347F-300LB(?!-\d)' })
     foreach ($extra in $extraRoots) {
-        $skipName = $extra.Name + '.skip'
-        Rename-Item -LiteralPath $extra.FullName -NewName $skipName -Force
+        Rename-Item -LiteralPath $extra.FullName -NewName ($extra.Name + '.skip') -Force
         Write-Host ("[A00][SKIP] Extra top-level assembly copy excluded: {0}" -f $extra.Name) -ForegroundColor DarkYellow
     }
 }
 
 try {
     & $Inner -RootAssemblyPath $rootAssembly -OutputDir $OutputDir
-    Write-Host '[A99][PASS] Reference assembly inspector V2 finished.' -ForegroundColor Green
+    Write-Host '[A99][PASS] Reference assembly inspector V3 finished.' -ForegroundColor Green
     exit 0
 }
 catch {
     Write-Host ("[A99][FAIL] {0}" -f $_.Exception.Message) -ForegroundColor Red
-    throw
+    exit 1
 }
