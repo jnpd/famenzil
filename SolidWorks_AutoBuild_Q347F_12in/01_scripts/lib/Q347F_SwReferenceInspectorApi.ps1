@@ -214,12 +214,19 @@ namespace Q347F
             ModelDoc2 model = null;
             bool openedHere = false;
 
-            try { model = app.GetOpenDocumentByName(partPath) as ModelDoc2; } catch { }
+            string fullPath = Path.GetFullPath(partPath);
+            string workingDir = Path.GetDirectoryName(fullPath);
+            if (!String.IsNullOrWhiteSpace(workingDir))
+            {
+                try { app.SetCurrentWorkingDirectory(workingDir); } catch { }
+            }
+
+            try { model = app.GetOpenDocumentByName(fullPath) as ModelDoc2; } catch { }
 
             if (model == null)
             {
                 object opened = app.OpenDoc6(
-                    partPath,
+                    fullPath,
                     (int)swDocumentTypes_e.swDocPART,
                     (int)(swOpenDocOptions_e.swOpenDocOptions_Silent | swOpenDocOptions_e.swOpenDocOptions_ReadOnly),
                     "",
@@ -235,7 +242,7 @@ namespace Q347F
             try
             {
                 RefPartReport report = new RefPartReport();
-                report.Path = Path.GetFullPath(partPath);
+                report.Path = fullPath;
                 report.Title = model.GetTitle();
                 report.Revision = revision;
                 report.OpenErrors = errors;
