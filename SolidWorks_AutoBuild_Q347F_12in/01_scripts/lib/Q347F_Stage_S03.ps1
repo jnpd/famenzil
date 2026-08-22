@@ -83,6 +83,10 @@ function Invoke-S03 {
         [void][Q347F.SwGeometryApi]::CreateEnvelopeSketch($model, $zf25Name, 'SK_ENV_F25_OD', @((Get-Param 'ADAPTER_OD_CAD')))
         Write-RunLog 'S03' 'ENVELOPE' 22 'PASS' ("F25 construction envelope sketch created: OD φ{0} at Z={1} mm." -f (Get-Param 'ADAPTER_OD_CAD'), (Get-Param 'Z_F25_INTERFACE_CAD'))
 
+        Write-RunLog 'S03' 'READBACK' 22 'RUNNING' 'Forcing rebuild before independent world-coordinate readback of all X/Z station planes.'
+        $readbackRebuildOk = [Q347F.SwGeometryApi]::RebuildForReadback($model)
+        Assert-True $readbackRebuildOk 'Rebuild failed before station-plane coordinate readback.'
+
         foreach ($p in $createdPlanes) {
             Assert-True ([Q347F.SwValidationApi]::FeatureExists($model, $p.Name)) ("Missing required reference plane after creation: {0}" -f $p.Name)
             if ([Math]::Abs($p.Expected) -gt 0.0001) {
@@ -90,7 +94,7 @@ function Invoke-S03 {
                 Assert-Near ("Readback {0}" -f $p.Name) $readSigned $p.Expected 0.01
             }
         }
-        Write-RunLog 'S03' 'READBACK' 23 'PASS' ("Required station planes verified by name and offset readback. X={0}, Z={1}." -f $xStations.Count, $zStations.Count)
+        Write-RunLog 'S03' 'READBACK' 23 'PASS' ("Required station planes verified by feature name and world-coordinate readback. X={0}, Z={1}." -f $xStations.Count, $zStations.Count)
 
         $validation = [Q347F.SwValidationApi]::Validate($model)
         if (-not $validation.RebuildOk) {
