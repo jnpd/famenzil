@@ -135,7 +135,7 @@ function Write-FinalSummary {
         steps = $script:StepStatus
         warnings = @($script:RunWarnings)
         errors = @($script:RunErrors)
-        currentMilestone = 'S00-S04 implemented. S04 generates editable 01_BALL.SLDPRT using TEMP-FROZEN manufacturing dimensions.'
+        currentMilestone = 'S00-S04 implemented. S04 generates editable 01_BALL.SLDPRT from current CAD-draft candidate dimensions; manufacturing freeze is a separate engineering gate.'
     }
     $summary | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $SummaryPath -Encoding UTF8
 
