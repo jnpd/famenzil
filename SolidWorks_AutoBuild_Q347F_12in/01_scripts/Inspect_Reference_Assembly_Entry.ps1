@@ -65,12 +65,50 @@ if ($isExtractedZip) {
     }
 }
 
+$exitCode = 1
 try {
     & $Inner -RootAssemblyPath $rootAssembly -OutputDir $OutputDir
-    Write-Host '[A99][PASS] Reference assembly inspector V3 finished.' -ForegroundColor Green
-    exit 0
+
+    $summaryPath = Join-Path $OutputDir '20in_summary.json'
+    if (-not (Test-Path -LiteralPath $summaryPath)) {
+        throw 'Inspector returned without 20in_summary.json; result cannot be accepted.'
+    }
+
+    $summary = Get-Content -LiteralPath $summaryPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $partExpected = [int]$summary.SldprtFiles
+    $partDone = [int]$summary.PartReportsCompleted
+    $components = [int]$summary.MainAssemblyComponentInstances
+    $missing = [int]$summary.MissingReferences
+    $errors = [int]$summary.Errors
+
+    Write-Host ("[A98][VERIFY] Components={0}; Parts={1}/{2}; MissingRefs={3}; Errors={4}" -f $components,$partDone,$partExpected,$missing,$errors) -ForegroundColor Cyan
+
+    if ($components -le 0) { throw 'Acceptance failed: top assembly component count is 0.' }
+    if ($partExpected -le 0) { throw 'Acceptance failed: no SLDPRT files were discovered.' }
+    if ($partDone -ne $partExpected) { throw ("Acceptance failed: only {0}/{1} part reports completed." -f $partDone,$partExpected) }
+    if ($missing -ne 0) { throw ("Acceptance failed: {0} missing component references remain." -f $missing) }
+    if ($errors -ne 0) { throw ("Acceptance failed: {0} inspection errors remain." -f $errors) }
+
+    Write-Host '[A99][PASS] Full reference assembly inspection verified.' -ForegroundColor Green
+    $exitCode = 0
 }
 catch {
     Write-Host ("[A99][FAIL] {0}" -f $_.Exception.Message) -ForegroundColor Red
-    exit 1
+    $exitCode = 1
 }
+finally {
+    $isolatedPidText = [Environment]::GetEnvironmentVariable('Q347F_ISOLATED_SW_PID')
+    if (-not [string]::IsNullOrWhiteSpace($isolatedPidText)) {
+        $isolatedPid = 0
+        if ([int]::TryParse($isolatedPidText, [ref]$isolatedPid) -and $isolatedPid -gt 0) {
+            $p = Get-Process -Id $isolatedPid -ErrorAction SilentlyContinue
+            if ($null -ne $p) {
+                Write-Host ("[A98][CLEANUP] Closing isolated SOLIDWORKS PID={0}" -f $isolatedPid) -ForegroundColor DarkGray
+                Stop-Process -Id $isolatedPid -Force -ErrorAction SilentlyContinue
+            }
+        }
+        [Environment]::SetEnvironmentVariable('Q347F_ISOLATED_SW_PID', $null)
+    }
+}
+
+exit $exitCode
