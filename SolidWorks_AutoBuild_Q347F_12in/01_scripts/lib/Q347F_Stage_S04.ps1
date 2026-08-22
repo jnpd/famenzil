@@ -22,11 +22,6 @@ function Invoke-S04 {
         $slotStartZ = $ballR - $upperDepth
 
         # Analytical final-body Z envelope after the polar support bores are cut.
-        # The finished body no longer spans BALL_OD in Z because D105 removes the north-pole
-        # cap and D70 removes the south-pole cap. Validate the post-machining geometry, not the
-        # pre-machining sphere. For a blind polar bore the remaining extreme is the larger of:
-        #   sphere/bore intersection = sqrt(R^2-r^2)
-        #   blind-cut floor distance from center = R-depth
         $upperSphereEdgeZ = [Math]::Sqrt([Math]::Max(0.0, ($ballR * $ballR) - ($upperBoreR * $upperBoreR)))
         $lowerSphereEdgeAbsZ = [Math]::Sqrt([Math]::Max(0.0, ($ballR * $ballR) - ($lowerBoreR * $lowerBoreR)))
         $expectedZMax = [Math]::Max($upperSphereEdgeZ, ($ballR - $upperDepth))
@@ -103,7 +98,7 @@ function Invoke-S04 {
             'SK_BALL_PROFILE',
             'CUT_BORE_D303',
             'CUT_UPPER_SUPPORT_BORE_D105',
-            'CUT_UPPER_DRIVE_SLOT_70x50_R8',
+            'CUT_UPPER_DRIVE_SLOT_70x44_R8',
             'CUT_LOWER_SUPPORT_BORE_D70'
         )
         foreach ($f in $required) {
@@ -115,9 +110,6 @@ function Invoke-S04 {
         $xSpan = $audit.XMaxMm - $audit.XMinMm
         $ySpan = $audit.YMaxMm - $audit.YMinMm
         $zSpan = $audit.ZMaxMm - $audit.ZMinMm
-
-        # X and Y extremes survive the current cuts, while Z extremes are intentionally removed
-        # by the top/bottom support bores. Compare each axis against its post-feature expectation.
         Assert-Near 'BALL audit X width' $xSpan (Get-Param 'BALL_W_X') 3.0
         Assert-Near 'BALL audit Y OD' $ySpan (Get-Param 'BALL_OD') 3.0
         Assert-Near 'BALL audit Z max after D105 cut' $audit.ZMaxMm $expectedZMax 3.0
@@ -130,6 +122,9 @@ function Invoke-S04 {
         } else {
             Write-RunLog 'S04' 'WHATS_WRONG' 33 'PASS' 'BALL rebuild PASS; What''s Wrong errors=0; warnings=0.'
         }
+
+        [Q347F.SwBallApi]::ApplyPresentationAppearance($model)
+        Write-RunLog 'S04' 'PRESENTATION' 33 'PASS' 'Dark customer-style appearance applied; reference planes, axes and sketches hidden for saved view.'
 
         $saveErr = 0; $saveWarn = 0
         $stagedOk = [Q347F.SwValidationApi]::SaveAs($model, $BallStagingPath, [ref]$saveErr, [ref]$saveWarn)
