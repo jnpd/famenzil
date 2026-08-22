@@ -78,10 +78,10 @@ function Invoke-S03 {
             (Get-Param 'BODY_OUTER_D_CENTRAL_CAD'),
             (Get-Param 'MID_FLANGE_OD_CAD')
         ))
-        Write-RunLog 'S03' 'ENVELOPE' 22 'PASS' 'X=0 construction envelope sketch created: BALL φ465 / BORE φ303 / BODY φ504 / MID FLANGE φ562.5.'
+        Write-RunLog 'S03' 'ENVELOPE' 22 'PASS' 'X=0 construction envelope sketch created: BALL D465 / BORE D303 / BODY D504 / MID FLANGE D562.5.'
 
         [void][Q347F.SwGeometryApi]::CreateEnvelopeSketch($model, $zf25Name, 'SK_ENV_F25_OD', @((Get-Param 'ADAPTER_OD_CAD')))
-        Write-RunLog 'S03' 'ENVELOPE' 22 'PASS' ("F25 construction envelope sketch created: OD φ{0} at Z={1} mm." -f (Get-Param 'ADAPTER_OD_CAD'), (Get-Param 'Z_F25_INTERFACE_CAD'))
+        Write-RunLog 'S03' 'ENVELOPE' 22 'PASS' ("F25 construction envelope sketch created: OD D{0} at Z={1} mm." -f (Get-Param 'ADAPTER_OD_CAD'), (Get-Param 'Z_F25_INTERFACE_CAD'))
 
         Write-RunLog 'S03' 'READBACK' 22 'RUNNING' 'Forcing rebuild before independent world-coordinate readback of all X/Z station planes.'
         $readbackRebuildOk = [Q347F.SwGeometryApi]::RebuildForReadback($model)
@@ -127,15 +127,21 @@ function Invoke-S03 {
             $previousBackup = Join-Path $RunBackupDir '00_SKELETON_previous_PASS.SLDPRT'
             Copy-Item -LiteralPath $SkeletonFinalPath -Destination $previousBackup -Force
             Write-RunLog 'S03' 'BACKUP' 24 'PASS' ("Previous skeleton backed up: {0}" -f $previousBackup)
+
+            $closedOld = [Q347F.SwSessionApi]::CloseDocumentByPath($script:SwSession, $SkeletonFinalPath)
+            if ($closedOld) {
+                Write-RunLog 'S03' 'PUBLISH' 24 'PASS' 'Previously published 00_SKELETON.SLDPRT was open in SOLIDWORKS and was closed automatically before overwrite.'
+                Start-Sleep -Milliseconds 300
+            }
         }
 
         $saveErr2 = 0; $saveWarn2 = 0
         $publishedOk = [Q347F.SwValidationApi]::SaveAs($model, $SkeletonFinalPath, [ref]$saveErr2, [ref]$saveWarn2)
         if (-not $publishedOk -or $saveErr2 -ne 0) {
             if ($previousBackup -and (Test-Path -LiteralPath $previousBackup)) {
-                Copy-Item -LiteralPath $previousBackup -Destination $SkeletonFinalPath -Force
+                try { Copy-Item -LiteralPath $previousBackup -Destination $SkeletonFinalPath -Force } catch { }
             }
-            throw "Failed to publish final skeleton. SaveOk=$publishedOk ErrorCode=$saveErr2 WarningCode=$saveWarn2"
+            throw "Failed to publish final skeleton. SaveOk=$publishedOk ErrorCode=$saveErr2 WarningCode=$saveWarn2. If Windows still reports the file is in use, close any external viewer/process holding 00_SKELETON.SLDPRT."
         }
 
         $planeCount = [Q347F.SwValidationApi]::CountFeatureType($model, 'RefPlane')
