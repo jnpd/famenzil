@@ -11,13 +11,14 @@ set "RC=%ERRORLEVEL%"
 
 echo.
 if not "%RC%"=="0" (
-    echo [FAIL] Q347F S00-S03 自动建模未通过。请保留 04_logs\run_xxx 目录用于排查。
-    echo 断点续跑：一键生成12寸Q347F.bat resume
+    echo [FAIL] Q347F S00-S03 build failed.
+    echo Keep the latest 04_logs\run_xxx folder for troubleshooting.
+    echo Resume command: this BAT file with argument resume
     pause
     exit /b %RC%
 )
 
-echo [PASS] S00-S03 已通过，00_SKELETON.SLDPRT 已生成。
-echo 当前版本故意停在 S03，不会继续生成 BALL / BODY 等零件。
+echo [PASS] S00-S03 completed. 00_SKELETON.SLDPRT was generated.
+echo This version intentionally stops after S03.
 pause
 exit /b 0
