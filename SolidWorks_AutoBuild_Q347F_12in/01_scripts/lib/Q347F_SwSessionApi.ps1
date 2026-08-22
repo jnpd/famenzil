@@ -2,18 +2,17 @@ function Add-EmbeddedSwSessionApiType {
     if ('Q347F.SwSessionApi' -as [type]) { return }
 
     $source = @'
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Runtime.InteropServices;
-using SolidWorks.Interop.sldworks;
-using SolidWorks.Interop.swconst;
+using Sys = System;
+using IO = System.IO;
+using Interop = System.Runtime.InteropServices;
+using SW = SolidWorks.Interop.sldworks;
+using SWC = SolidWorks.Interop.swconst;
 
 namespace Q347F
 {
     public sealed class SwSession
     {
-        public SldWorks App;
+        public SW.SldWorks App;
         public string Mode;
         public string Revision;
         public int ProcessId;
@@ -23,9 +22,9 @@ namespace Q347F
 
     public static class SwSessionApi
     {
-        private static SwSession BuildSession(SldWorks app, string mode)
+        private static SwSession BuildSession(SW.SldWorks app, string mode)
         {
-            if (app == null) throw new System.InvalidOperationException("SOLIDWORKS application object is null.");
+            if (app == null) throw new Sys.InvalidOperationException("SOLIDWORKS application object is null.");
             app.Visible = true;
             return new SwSession
             {
@@ -40,16 +39,16 @@ namespace Q347F
 
         public static SwSession StartNewIsolated()
         {
-            System.Type t = System.Type.GetTypeFromProgID("SldWorks.Application", true);
-            object obj = System.Activator.CreateInstance(t);
-            return BuildSession((SldWorks)obj, "START_NEW_ISOLATED");
+            Sys.Type t = Sys.Type.GetTypeFromProgID("SldWorks.Application", true);
+            object obj = Sys.Activator.CreateInstance(t);
+            return BuildSession((SW.SldWorks)obj, "START_NEW_ISOLATED");
         }
 
         public static SwSession ConnectOrStart()
         {
-            string forceIsolated = System.Environment.GetEnvironmentVariable("Q347F_FORCE_ISOLATED_SW");
-            if (System.String.Equals(forceIsolated, "1", System.StringComparison.OrdinalIgnoreCase) ||
-                System.String.Equals(forceIsolated, "true", System.StringComparison.OrdinalIgnoreCase))
+            string forceIsolated = Sys.Environment.GetEnvironmentVariable("Q347F_FORCE_ISOLATED_SW");
+            if (Sys.String.Equals(forceIsolated, "1", Sys.StringComparison.OrdinalIgnoreCase) ||
+                Sys.String.Equals(forceIsolated, "true", Sys.StringComparison.OrdinalIgnoreCase))
             {
                 return StartNewIsolated();
             }
@@ -58,80 +57,53 @@ namespace Q347F
             string mode = "";
             try
             {
-                obj = Marshal.GetActiveObject("SldWorks.Application");
+                obj = Interop.Marshal.GetActiveObject("SldWorks.Application");
                 mode = "ATTACH";
             }
             catch
             {
-                System.Type t = System.Type.GetTypeFromProgID("SldWorks.Application", true);
-                obj = System.Activator.CreateInstance(t);
+                Sys.Type t = Sys.Type.GetTypeFromProgID("SldWorks.Application", true);
+                obj = Sys.Activator.CreateInstance(t);
                 mode = "START_NEW";
             }
 
-            return BuildSession((SldWorks)obj, mode);
+            return BuildSession((SW.SldWorks)obj, mode);
         }
 
         public static void ExitIsolated(SwSession session)
         {
             if (session == null || session.App == null) return;
-            if (!System.String.Equals(session.Mode, "START_NEW_ISOLATED", System.StringComparison.OrdinalIgnoreCase)) return;
+            if (!Sys.String.Equals(session.Mode, "START_NEW_ISOLATED", Sys.StringComparison.OrdinalIgnoreCase)) return;
             try { session.App.ExitApp(); } catch { }
         }
 
         public static string GetDefaultPartTemplate(SwSession session)
         {
             if (session == null || session.App == null)
-                throw new System.ArgumentNullException("session", "SOLIDWORKS session is null.");
-            return session.App.GetUserPreferenceStringValue((int)swUserPreferenceStringValue_e.swDefaultTemplatePart);
+                throw new Sys.ArgumentNullException("session", "SOLIDWORKS session is null.");
+            return session.App.GetUserPreferenceStringValue((int)SWC.swUserPreferenceStringValue_e.swDefaultTemplatePart);
         }
 
         public static object NewPart(SwSession session, string templatePath)
         {
             if (session == null || session.App == null)
-                throw new System.ArgumentNullException("session", "SOLIDWORKS session is null.");
+                throw new Sys.ArgumentNullException("session", "SOLIDWORKS session is null.");
             object doc = session.App.NewDocument(templatePath, 0, 0.0, 0.0);
-            if (doc == null) throw new System.InvalidOperationException("ISldWorks.NewDocument returned null.");
-            ModelDoc2 model = (ModelDoc2)doc;
+            if (doc == null) throw new Sys.InvalidOperationException("ISldWorks.NewDocument returned null.");
+            SW.ModelDoc2 model = (SW.ModelDoc2)doc;
             model.ShowFeatureErrorDialog = false;
             return doc;
         }
 
         public static bool CloseDocumentByPath(SwSession session, string fullPath)
         {
-            if (session == null || session.App == null || System.String.IsNullOrWhiteSpace(fullPath)) return false;
+            if (session == null || session.App == null || Sys.String.IsNullOrWhiteSpace(fullPath)) return false;
 
             string target;
-            try { target = System.IO.Path.GetFullPath(fullPath); }
+            try { target = IO.Path.GetFullPath(fullPath); }
             catch { target = fullPath; }
 
-            ModelDoc2 doc = null;
-            try { doc = session.App.GetOpenDocumentByName(target) as ModelDoc2; } catch { }
-
-            if (doc == null)
-            {
-                try
-                {
-                    ModelDoc2 cur = session.App.GetFirstDocument() as ModelDoc2;
-                    while (cur != null)
-                    {
-                        string p = "";
-                        try { p = cur.GetPathName(); } catch { }
-                        if (!System.String.IsNullOrWhiteSpace(p))
-                        {
-                            string normalized;
-                            try { normalized = System.IO.Path.GetFullPath(p); } catch { normalized = p; }
-                            if (System.String.Equals(normalized, target, System.StringComparison.OrdinalIgnoreCase))
-                            {
-                                doc = cur;
-                                break;
-                            }
-                        }
-                        try { cur = cur.GetNext() as ModelDoc2; } catch { cur = null; }
-                    }
-                }
-                catch { }
-            }
-
+            SW.ModelDoc2 doc = FindOpenDocumentByPathOrTitle(session.App, target);
             if (doc == null) return false;
 
             string title = doc.GetTitle();
@@ -139,15 +111,58 @@ namespace Q347F
             return true;
         }
 
+        public static SW.ModelDoc2 FindOpenDocumentByPathOrTitle(SW.SldWorks app, string fullPath)
+        {
+            if (app == null || Sys.String.IsNullOrWhiteSpace(fullPath)) return null;
+            string target;
+            try { target = IO.Path.GetFullPath(fullPath); }
+            catch { target = fullPath; }
+            string targetTitle = IO.Path.GetFileName(target);
+
+            try
+            {
+                SW.ModelDoc2 exact = app.GetOpenDocumentByName(target) as SW.ModelDoc2;
+                if (exact != null) return exact;
+            }
+            catch { }
+
+            try
+            {
+                SW.ModelDoc2 cur = app.GetFirstDocument() as SW.ModelDoc2;
+                int guard = 0;
+                while (cur != null && guard++ < 500)
+                {
+                    string p = "";
+                    string title = "";
+                    try { p = cur.GetPathName(); } catch { }
+                    try { title = cur.GetTitle(); } catch { }
+
+                    if (!Sys.String.IsNullOrWhiteSpace(p))
+                    {
+                        string normalized;
+                        try { normalized = IO.Path.GetFullPath(p); } catch { normalized = p; }
+                        if (Sys.String.Equals(normalized, target, Sys.StringComparison.OrdinalIgnoreCase)) return cur;
+                    }
+
+                    if (!Sys.String.IsNullOrWhiteSpace(title) &&
+                        Sys.String.Equals(title, targetTitle, Sys.StringComparison.OrdinalIgnoreCase)) return cur;
+
+                    try { cur = cur.GetNext() as SW.ModelDoc2; } catch { cur = null; }
+                }
+            }
+            catch { }
+
+            return null;
+        }
+
         public static void CloseDocument(SwSession session, object modelObject)
         {
             if (session == null || session.App == null || modelObject == null) return;
-            ModelDoc2 model = (ModelDoc2)modelObject;
+            SW.ModelDoc2 model = (SW.ModelDoc2)modelObject;
             try { session.App.CloseDoc(model.GetTitle()); } catch { }
         }
     }
 }
-
 '@
 
     Add-Type -TypeDefinition $source -Language CSharp -ReferencedAssemblies @($script:InteropSldworks, $script:InteropSwconst, 'System.dll', 'System.Core.dll')
