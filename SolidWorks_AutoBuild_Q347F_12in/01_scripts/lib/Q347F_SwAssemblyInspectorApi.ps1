@@ -322,13 +322,26 @@ namespace Q347F
             ModelDoc2 model = null;
             bool openedHere = false;
 
-            try { model = app.GetOpenDocumentByName(assemblyPath) as ModelDoc2; } catch { }
+            string fullPath = Path.GetFullPath(assemblyPath);
+            string workingDir = Path.GetDirectoryName(fullPath);
+            if (!String.IsNullOrWhiteSpace(workingDir))
+            {
+                try { app.SetCurrentWorkingDirectory(workingDir); } catch { }
+            }
+
+            try { model = app.GetOpenDocumentByName(fullPath) as ModelDoc2; } catch { }
             if (model == null)
             {
+                int openOptions =
+                    (int)swOpenDocOptions_e.swOpenDocOptions_Silent |
+                    (int)swOpenDocOptions_e.swOpenDocOptions_ReadOnly |
+                    (int)swOpenDocOptions_e.swOpenDocOptions_OverrideDefaultLoadLightweight |
+                    (int)swOpenDocOptions_e.swOpenDocOptions_LoadLightweight;
+
                 object opened = app.OpenDoc6(
-                    assemblyPath,
+                    fullPath,
                     (int)swDocumentTypes_e.swDocASSEMBLY,
-                    (int)(swOpenDocOptions_e.swOpenDocOptions_Silent | swOpenDocOptions_e.swOpenDocOptions_ReadOnly),
+                    openOptions,
                     "",
                     ref errors,
                     ref warnings);
@@ -344,7 +357,7 @@ namespace Q347F
                 if (assy == null) throw new InvalidOperationException("Opened document is not an AssemblyDoc.");
 
                 RefAssemblyReport report = new RefAssemblyReport();
-                report.Path = Path.GetFullPath(assemblyPath);
+                report.Path = fullPath;
                 report.Title = model.GetTitle();
                 report.Revision = revision;
                 report.OpenErrors = errors;
