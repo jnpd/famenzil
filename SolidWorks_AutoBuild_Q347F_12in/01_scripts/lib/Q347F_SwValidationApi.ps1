@@ -28,6 +28,12 @@ namespace Q347F
 
     public static class SwValidationApi
     {
+        private static ModelDoc2 AsModel(object modelObject)
+        {
+            if (modelObject == null) throw new ArgumentNullException("modelObject");
+            return (ModelDoc2)modelObject;
+        }
+
         private static Feature FindFeatureByName(ModelDoc2 model, string name)
         {
             Feature f = (Feature)model.FirstFeature();
@@ -39,8 +45,9 @@ namespace Q347F
             return null;
         }
 
-        public static ValidationResult Validate(ModelDoc2 model)
+        public static ValidationResult Validate(object modelObject)
         {
+            ModelDoc2 model = AsModel(modelObject);
             ValidationResult result = new ValidationResult();
             result.RebuildOk = model.ForceRebuild3(false);
 
@@ -74,7 +81,6 @@ namespace Q347F
             }
             catch { }
 
-            // Feature-level fallback catches items that may not appear in GetWhatsWrong on some setups.
             Feature cur = (Feature)model.FirstFeature();
             HashSet<string> seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (WhatsWrongItem i in result.Items) seen.Add(i.FeatureName + "|" + i.ErrorCode + "|" + i.IsWarning);
@@ -107,8 +113,9 @@ namespace Q347F
             return result;
         }
 
-        public static bool SaveAs(ModelDoc2 model, string path, out int errors, out int warnings)
+        public static bool SaveAs(object modelObject, string path, out int errors, out int warnings)
         {
+            ModelDoc2 model = AsModel(modelObject);
             errors = 0;
             warnings = 0;
             return model.Extension.SaveAs(
@@ -120,13 +127,14 @@ namespace Q347F
                 ref warnings);
         }
 
-        public static bool FeatureExists(ModelDoc2 model, string name)
+        public static bool FeatureExists(object modelObject, string name)
         {
-            return FindFeatureByName(model, name) != null;
+            return FindFeatureByName(AsModel(modelObject), name) != null;
         }
 
-        public static int CountFeatureType(ModelDoc2 model, string typeName)
+        public static int CountFeatureType(object modelObject, string typeName)
         {
+            ModelDoc2 model = AsModel(modelObject);
             int count = 0;
             Feature f = (Feature)model.FirstFeature();
             while (f != null)
@@ -137,12 +145,6 @@ namespace Q347F
                 f = (Feature)f.GetNextFeature();
             }
             return count;
-        }
-
-        public static void CloseDocument(SldWorks app, ModelDoc2 model)
-        {
-            if (app == null || model == null) return;
-            try { app.CloseDoc(model.GetTitle()); } catch { }
         }
     }
 }
