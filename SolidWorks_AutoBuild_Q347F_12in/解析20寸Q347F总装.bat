@@ -17,15 +17,16 @@ if "%~1"=="" (
 )
 
 set "SOURCE_PATH=%~1"
+set "Q347F_FORCE_ISOLATED_SW=1"
 echo.
 echo ============================================================
 echo Q347F 20in FULL ASSEMBLY REVERSE INSPECTION
 echo Source: %SOURCE_PATH%
 echo ============================================================
 echo.
-
-echo [INFO] SOLIDWORKS may open/close many files while extracting the model ledger.
-echo [INFO] Do not close SOLIDWORKS until the script reports COMPLETE.
+echo [INFO] Reference inspection will start an ISOLATED SOLIDWORKS instance.
+echo [INFO] Your existing SOLIDWORKS session will not be reused or closed.
+echo [INFO] Do not close the isolated SOLIDWORKS window until the script reports COMPLETE.
 echo.
 
 powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0\01_scripts\Inspect_Reference_Assembly_Entry.ps1" -SourcePath "%SOURCE_PATH%"
