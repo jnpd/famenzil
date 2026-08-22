@@ -1,194 +1,212 @@
-# Q347F 12寸 Class150——数字化总装骨架总账 V9
+# Q347F 12寸 Class150——数字化总装骨架 / 尺寸参数 / 装配关系 / 空间坐标总账（当前统一版）
 
-> **定位**：这是当前 Q347F 12寸 Class150 固定球阀的唯一数字化汇总结果页。保存 **尺寸参数 + 装配关系 + 空间坐标 + SolidWorks变量 + 开放项 + 历史纠错**。  
-> **当前主线已推进到 V31 / 第7A步**：BODY / BODY_COVER 两片式主壳体、F2F=610、主拆装孔φ480、径向φ466×7主O圈、φ500×φ490缠绕垫、20×M20主中法兰、BODY中央φ504承压包络以及BODY/BODY_COVER第一版SolidWorks尺寸表均已建立。
-
-> **永久规则**：  
-> 1. 中文工程名称和英文变量名同时保留；  
-> 2. 旧值被纠正时不删除，降为 `H/H-R`；  
-> 3. 20寸资料只做成熟结构参考，不直接成为12寸制造尺寸；  
-> 4. A/B/C+/C可进入草模，D不得写死进制造图；  
-> 5. 三本账同步：尺寸参数 / 装配关系 / 空间坐标。
+> **定位**：这是当前 Q347F 12寸 Class150 固定球阀的**唯一数字化结果总账**。只回答四件事：`现在是多少？在哪里？和谁装？状态是什么？`  
+> **当前设计专题进度**：V43。  
+> **当前SolidWorks实机进度**：`S00 PASS / S01 PASS / S02 PASS / S03 PASS`；`00_SKELETON.SLDPRT` 已生成。  
+> **计算来源**：公式、推导、选值原因统一回到 [设计计算主线](./Q347F_12in_Class150_球体设计计算底稿_第一部分_小白可读公式完整版.md) 和各 Vxx 专题页。  
+> **永久边界**：本账中的 `CAD` / `C` / `C+` 值可用于参数化草模，不自动等于制造冻结尺寸。
 
 [← 总导航](./00_Q347F_12in_Class150_文档导航_从这里开始.md)  
-[← V28 主拆装口/O圈纠错](./Q347F_12in_Class150_第6I步_主拆装口校核_φ480_H8f8止口_φ466x7径向O圈纠错_V28.md)  
-[← V29 BODY承压骨架](./Q347F_12in_Class150_第6J步_BODY完整承压骨架_φ471局部壁厚纠错_左端到主开口_V29.md)  
-[← V30 干涉预检查](./Q347F_12in_Class150_第6K步_BODY_BODY_COVER_BALL_SEAT总装干涉预检查_V30.md)  
-[← V31 SolidWorks建模尺寸表](./Q347F_12in_Class150_第7A步_BODY_BODY_COVER第一版SolidWorks建模尺寸表_V31.md)
+[← 设计计算主线](./Q347F_12in_Class150_球体设计计算底稿_第一部分_小白可读公式完整版.md)  
+[→ V42 SolidWorks变量交付](./Q347F_12in_Class150_第7L步_SolidWorks全局变量交付版_当前CAD_D门与HR隔离_V42.md)  
+[→ 自动建模永久主流程](./Q347F_12in_Class150_SolidWorks一键自动建模_永久唯一主流程.md)
 
 ---
 
 # 1. 状态规则
 
-| 状态 | 含义 |
-|---|---|
-| A | 项目/BOM/公司明确值 |
-| A-policy | 公司方法明确，最终制造值仍待关闭 |
-| B | 由已接受输入直接计算 |
-| C+ | 多条独立证据交叉支持的CAD候选 |
-| C | 有依据CAD候选，可草模，未制造冻结 |
-| C-space | 仅为保持CAD空间链不断的占位候选 |
-| D | 前置不足，禁止填死 |
-| P-XREF | 跨结构/跨规格参考或敏感性 |
-| H | 历史值 |
-| H/R | 已纠正、当前禁止使用 |
-| R | 风险/冻结门 |
+| 状态 | 含义 | 当前模型权限 |
+|---|---|---|
+| `A` | 项目/BOM/受控规范明确输入 | 可用 |
+| `A-policy` | 方法/规则明确，最终制造数仍待关闭 | 按规则可用 |
+| `B` | 已接受输入直接计算值 | 可用 |
+| `C+` | 多条独立依据交叉支持的候选 | 可用于CAD |
+| `C` | 有依据的设计/CAD候选 | 可用于CAD |
+| `C-space` | 仅空间/包络占位 | 仅包络 |
+| `P / P-XREF` | 代用、跨规格、敏感性 | 仅参考 |
+| `D` | 前置不足 | 禁止填死 |
+| `R / R-D` | 风险/合规门未关闭 | 关闭前不得冻结 |
+| `H` | 历史值 | 禁止作为当前值 |
+| `H/R` | 已纠正、禁止继续使用 | 禁止 |
 
 ---
 
-# 2. 项目统一基线
+# 2. 当前项目基线
 
-```text
-公称尺寸（NPS）                    = NPS12 / DN300                    A
-压力等级（CLASS）                 = 150                              A
-结构形式（TYPE）                  = 固定球 / trunnion-mounted        A
-主壳体结构（BODY_CONSTRUCTION）   = 两片式 / two-piece               A/C+
-装入形式（BODY_ENTRY_TYPE）       = Side Entry / 侧装式              A/C+
-流道（BORE_D）                    = φ303                             A
-介质（MEDIUM）                    = 天然气                            A
-机械载荷计算压力（P_LOAD_CALC）   = 2.00MPa                          A
-阀体材料（BODY_MAT）              = ASTM A216 WCB                    A
-球体材料（BALL_MAT）              = ASTM A182 F316                   A
-阀杆材料（STEM_MAT）              = ASTM A182 F51                    A
-阀座软密封（SEAT_SOFT）           = DEVLON                           A
-O形圈（ORING_MAT）                = VITON                            A
-```
+| 中文工程名称 | English / Variable | 当前值 | 状态 |
+|---|---|---:|---|
+| 公称尺寸 | NPS / DN | NPS12 / DN300 | A |
+| 压力等级 | CLASS | 150 | A |
+| 结构形式 | TYPE | 固定球 / Trunnion-mounted | A |
+| 主壳体结构 | BODY_CONSTRUCTION | 两片式 / Two-piece | A/C+ |
+| 装入形式 | BODY_ENTRY_TYPE | Side Entry / 侧装式 | A/C+ |
+| 流道 | BORE_D | φ303 mm | A |
+| 介质 | MEDIUM | 天然气 | A |
+| 机械载荷计算压力 | P_LOAD_CALC | 2.00 MPa | A |
+| 设计温度 | T_DESIGN | ? | D/R |
+| 标准允许额定压力 | P_RATING_ALLOWED | f(CLASS,MATERIAL,T_DESIGN) | D |
+| 阀体材料 | BODY_MAT | ASTM A216 WCB | A |
+| 球体材料 | BALL_MAT | ASTM A182 F316 | A |
+| 阀杆材料 | STEM_MAT | ASTM A182 F51 | A |
+| 阀座软密封 | SEAT_SOFT | DEVLON | A |
+| O形圈 | ORING_MAT | VITON | A |
 
-压力变量永久拆分：
-
-```text
-P_LOAD_CALC=2.00MPa
-P_RATING_ALLOWED=f(CLASS,MATERIAL,T_DESIGN)
-T_DESIGN=? D/R
-```
-
-WCB / Class150常温标准额定约1.96MPa，因此：
-
-```text
-R20_01_PRESSURE_CLASS=HIGH
-```
-
-在设计温度和2.00MPa口径关闭前，不声明“2.00MPa就是Class150/WCB标准额定压力”。
+**压力永久拆分**：`P_LOAD_CALC=2.00MPa` 用于当前机械计算；不得自动等同 `P_RATING_ALLOWED`。
 
 ---
 
-# 3. 全局坐标 / F2F
+# 3. 全局坐标——项目语义坐标永远不变
 
 ```text
-BALL_CENTER_O=(0,0,0)
-FLOW_AXIS=X
-SUPPORT_AXIS=Z
--X=入口
-+X=出口
-+Z=阀杆/驱动
--Z=底盖
+BALL_CENTER_O = (0,0,0)
+X = FLOW_AXIS      流道轴
+Y = CROSS_AXIS     横向轴
+Z = SUPPORT_AXIS   支承/阀杆轴
+
+-X = 入口方向
++X = 出口方向
++Z = 阀杆/驱动方向
+-Z = 底盖方向
 ```
 
-SolidWorks基准：
+## 3.1 SolidWorks原生基准面规则——已由S03实机纠正
+
+**禁止再写成永久硬绑定：**
 
 ```text
-Origin=BALL_CENTER_O
-Front=XZ
-Top=XY
-Right=YZ
-Axis_X=FLOW_AXIS
-Axis_Z=SUPPORT_AXIS
+Front = XZ
+Top   = XY
+Right = YZ
 ```
 
-项目结构长度：
+程序必须：
 
 ```text
-VALVE_F2F=610mm A
-HALF_F2F=305 B
-X_END_FACE_L=-305 B/A
-X_END_FACE_R=+305 B/A
-F2F_TOL_STD=±3 STD
+读取原生RefPlane真实世界几何
+↓
+按法向/恒定坐标识别 XY / XZ / YZ
+↓
+建立项目自己的语义基准面
 ```
 
-顶装式838、短型356 → 当前结构 `H/R-for-current-geometry`。
-
----
-
-# 4. 主壳体拓扑
+项目统一使用：
 
 ```text
-BODY         = 主阀体 ×1
-BODY_COVER   = 侧装主阀盖/连接体 ×1
-STEM_COVER   = 上部前盖小件
-BOTTOM_COVER = 下支承底盖小件
-```
-
-一级结构：
-
-```text
-                         STEM_COVER
-                              │
-END FLANGE ─ BODY ─ SEAT ─── BALL ─── SEAT ─ BODY_COVER ─ END FLANGE
-                              │
-                         BOTTOM_COVER
-```
-
-```text
-BODY_PIECE_COUNT=2
-BODY_QTY=1
-BODY_COVER_QTY=1
-BODY_JOINT_COUNT=1
-```
-
-唯一主分界：
-
-```text
-X_BODY_JOINT_CAD=+232.5 C+ CAD
-X_BODY_JOINT_FINAL=? D
-```
-
-旧 `LEFT COVER—BODY—RIGHT COVER / IF-X-L / IF-X-R` → H/R。
-
----
-
-# 5. 球体
-
-```text
-BALL_OD=465 C
-BALL_R=232.5 B
-BALL_W_X=348 C
-BALL_X_FACE_L=-174 B/C
-BALL_X_FACE_R=+174 B/C
-BORE_D=303 A
-
-BALL_UPPER_BORE_D=105 C+
-BALL_UPPER_BORE_EFFECTIVE_L≈28.9 C
-BALL_UPPER_BORE_TOTAL_DEPTH=? D
-
-BALL_LOWER_BORE_D=70 C+
-BALL_LOWER_BORE_EFFECTIVE_L=50 C+
-BALL_LOWER_BORE_TOTAL_DEPTH>=50,最终? D
-```
-
-历史：
-
-```text
-下球孔固定52 → H/C
-下球孔底Z=-175 → H/R
+PLN_BASE_XY_FLOW_CROSS
+PLN_BASE_XZ_FLOW_SUPPORT
+PLN_BASE_YZ_CROSS_SUPPORT
+AXIS_X_FLOW
+AXIS_Z_SUPPORT
+SK_PT_BALL_CENTER_O
 ```
 
 ---
 
-# 6. 阀座密封副
+# 4. X向总账
+
+| 中文工程名称 | Variable / Feature | X mm | 状态 / 来源 |
+|---|---|---:|---|
+| 左RF端面 | X_END_FACE_L | -305.000 | A/B；F2F/2 |
+| 左端法兰背面 | X_END_FLANGE_BACK_L_CAD | -273.200 | B/C |
+| 左侧内部结构参考站 | X_BODY_JOINT_REF_L | -232.500 | C-reference；**不是第二主BODY joint** |
+| 球体左平端 | BALL_X_L | -174.000 | B/C |
+| 左真实密封接触 | X_CONTACT_L | -166.036 | B/C |
+| 球心 | BALL_CENTER_O | 0 | A/定义 |
+| 右真实密封接触 | X_CONTACT_R | +166.036 | B/C |
+| 球体右平端 | BALL_X_R | +174.000 | B/C |
+| 唯一主BODY分界 | X_BODY_JOINT_CAD | +232.500 | C+ |
+| 右端法兰背面 | X_END_FLANGE_BACK_R_CAD | +273.200 | B/C |
+| 右RF端面 | X_END_FACE_R | +305.000 | A/B |
+
+```text
+VALVE_F2F = 610 mm A
+HALF_F2F  = 305 mm B
+```
+
+历史：顶装式/其它结构长度 `838`、短型 `356` 对当前几何统一 `H/R-for-current-geometry`。
+
+---
+
+# 5. Z向总账
+
+| 中文工程名称 | Variable / Feature | Z mm | 状态 / 身份 |
+|---|---|---:|---|
+| 底盖外侧粗参考 | Z_BOTTOM_COVER_OUTER_REF_CAD | -289.1 | C/H-guide |
+| BODY—BOTTOM_COVER安装面 | Z_BODY_BOTTOM_IF_CAD | -270.5 | C |
+| 下支承轴→φ70 Boss肩面 | Z_BOTTOM_JOURNAL_PILOT_SHOULDER_CAD | -230.0 | C+ |
+| 下轴承外端 | LOWER_BRG_Z_OUT | -227.0 | C |
+| 下轴承内端 | LOWER_BRG_Z_IN | -177.0 | C |
+| 球心 | BALL_CENTER_O | 0 | A/定义 |
+| 上轴承内端 | UP_BRG_Z0 | +193.6 | C |
+| 上轴承外端 | UP_BRG_Z1 | +223.6 | C |
+| 上支承轴→φ105 Boss肩面 | Z_TOP_JOURNAL_PILOT_SHOULDER_CAD | +226.9 | C+ |
+| BODY—STEM_COVER安装面 | Z_BODY_TOP_IF_CAD | +264.5 | C |
+| 前盖外侧粗参考 | Z_TOP_COVER_OUTER_REF_CAD | +300.0 | C/H-guide |
+| 填料压紧/Adapter底参考 | Z_PACK_PRESS_FACE_CAD | +313.3 | C |
+| F25接口面 | Z_F25_INTERFACE_CAD | +337.3 | C |
+| 键起点 | Z_KEY_START_CAD | +339.8 | C |
+| 键终点 | Z_KEY_END_CAD | +429.8 | C |
+| 阀杆顶部CAD参考 | Z_STEM_TOP_CAD | +430.0 | C |
+
+关键纠错：
+
+```text
++227 作为BODY上安装面  → H/R
+-230 作为BODY下安装面  → H/R
+```
+
+当前：
+
+```text
++226.9 = 上支承轴→φ105定位Boss肩面
+-230.0 = 下支承轴→φ70定位Boss肩面
++264.5 = 真正BODY上安装面CAD
+-270.5 = 真正BODY下安装面CAD
+```
+
+---
+
+# 6. 球体 BALL 当前总账
+
+| 中文工程名称 | Variable | 当前值 | 状态 |
+|---|---|---:|---|
+| 球体外径 | BALL_OD | φ465 | C |
+| 球体半径 | BALL_R | 232.5 | B |
+| 球体X向总宽 | BALL_W_X | 348 | C |
+| 流道 | BORE_D | φ303 | A |
+| 上球孔 | BALL_UPPER_BORE_D | φ105 | C+ |
+| 上孔总深CAD | BALL_UPPER_BORE_DEPTH | 30 | C-CAD；制造最终待闭合 |
+| 下球孔 | BALL_LOWER_BORE_D | φ70 | C+ |
+| 下孔有效支承圆柱段 | BALL_LOWER_BORE_EFFECTIVE_L | 50 | C+ |
+| 下孔总深CAD | BALL_LOWER_BORE_DEPTH | 52 | C-CAD；不是制造冻结 |
+| 驱动槽X向长 | BALL_DRIVE_SLOT_L_X | 70 | C-CAD |
+| 驱动槽Y向宽 | BALL_DRIVE_SLOT_W_Y | 44 | C-CAD |
+| 驱动槽根圆角 | BALL_DRIVE_SLOT_R | R8 | C-CAD |
+| 驱动槽深 | BALL_DRIVE_SLOT_DEPTH | 27 | C-CAD |
+
+几何校核：
+
+```text
+(BALL_OD - BORE_D)/2 = (465-303)/2 = 81 mm
+```
+
+`81` 是几何空间，不是净承压壁厚。
+
+---
+
+# 7. 阀座 SEAT 当前总账
 
 ```text
 SEAT_D9=323.88
 SEAT_D10=327.13
 SEAT_D11=342
 SEAT_GUIDE_BORE=342.4
-SEAT_GUIDE_CLR_RAD=0.20
-
-SEAT_ORING_MAIN=φ320×5.3
-SEAT_ORING_ROOT=333.6
-SEAT_ORING_2=φ311×3.55
 SEAT_PILOT_2=323.6
 SEAT_GUIDE_2=323.8
-SEAT_CLR2_RAD=0.10
+
+SEAT_ORING_MAIN=φ320×5.3
+SEAT_ORING_MAIN_ROOT≈φ333.6
+SEAT_ORING_2=φ311×3.55
 
 SPRING=φ8×φ1.6×18×7
 SPRING_QTY=36/侧
@@ -198,1064 +216,523 @@ SPRING_PCD=362
 SEAT_BIG_OD=380
 SEAT_BIG_BORE=382
 WSEAT_ENV≈58 C-space
-SEAT_TRAVEL_FWD>=1.0
-SEAT_TRAVEL_BACK=0.5 C
 ```
 
-密封接触：
+真实密封接触：
 
 ```text
-X_CONTACT_R=+166.036
 X_CONTACT_L=-166.036
+X_CONTACT_R=+166.036
 ```
 
-局部坐标：
-
-```text
-u_R=X-X_CONTACT_R
-u_L=-(X-X_CONTACT_L)
-```
-
-禁止用球体平端±174替代真实密封接触位置。
+当前主阀座链能用于CAD；DEVLON最终热配合、石墨槽、第二O圈最终功能位置、自泄压动作/公差仍有制造冻结门。
 
 ---
 
-# 7. 上球体主支承
+# 8. 上球体主支承 / STEM_COVER
 
 ```text
-UP_BALL_BRG=φ105×φ100×30 A/C+
-UP_JOURNAL_D=100 C+
-UP_BRG_CENTER_Z=+208.6 C
-UP_BRG_Z0=+193.6 C
-UP_BRG_Z1=+223.6 C
-A_SUPPORT_ARM=208.566 B/C
+UP_BRG = φ105×φ100×30
+UP_JOURNAL_D = 100
+UP_BRG_Z0 = 193.6
+UP_BRG_Z1 = 223.6
+UP_BRG_CENTER_Z = 208.6
 ```
 
-正确链：
+正确承载链：
 
 ```text
-球体φ105孔
+BALL φ105孔
 ↓
 φ105×φ100×30轴承
 ↓
-STEM_COVER一体φ100轴颈
+STEM_COVER一体φ100支承轴
+↓
+φ105定位Boss
+↓
+BODY
 ```
 
-旧上主轴承φ70×φ65×50 → H/R；该件实际是阀杆导向轴承。
-
----
-
-# 8. 阀杆 / STEM_COVER内轨
+BODY上安装链：
 
 ```text
-STEM_MAIN_D=65
-STEM_KEY_D≈60 C
-STEM_SHOULDER_OD≈74 C+
-THRUST_UP=φ75×φ65×2
-STEM_GUIDE_BRG=φ70×φ65×50
-
-F0_Z≈+201.4 C
-STEM_GUIDE_Z0≈+203.4
-STEM_GUIDE_Z1≈+253.4
-
-STEM_ORING=φ65×5.3×2
-STEM_ORING_GROOT=73.8
-STEM_ORING_GW=7
-OIL_LAND≈16.8
-PACKING=φ75×φ65×5
-PACK_INSTALL_T≈4.4 C/P
-Z_TOP_STEM_FUNC_CAD≈+318.1
+Z_TOP_SHOULDER = 226.9
+TOP_PILOT_ENGAGEMENT_CAD = 37.6
+Z_BODY_TOP_IF_CAD = 226.9 + 37.6 = 264.5
 ```
 
-上接口：
+STEM_COVER当前：
 
 ```text
-TOP_IF_GUIDE_D=105
+TOP_PILOT_D=105
+TOP_COVER_FLANGE_T_CAD≈35.5
 TOP_IF_ORING=φ95×5.3
 TOP_IF_ORING_ROOT_D=96.6 C+
 TOP_IF_GASKET=φ115×φ105×3.2
-Z_BODY_TOP_IF=? D
+TOP_BODY_SCREW=4×M12×75 C+
+TOP_ADAPTER_SCREW=4×M12×50 C+
 ```
+
+上接口最终BCD/OD、最终配合公差仍 `D`。
 
 ---
 
 # 9. 下球体主支承 / BOTTOM_COVER
 
 ```text
-LOWER_BRG=φ70×φ65×50 A
-LOWER_JOURNAL_D=65 C+ / 底盖一体
-LOWER_THRUST=φ65×φ20×2 A/C+
-LOWER_BRG_CENTER_Z=-202.0 C
-LOWER_BRG_Z_OUT=-227.0 C
-LOWER_BRG_Z_IN=-177.0 C
-LOWER_BORE_MOUTH_Z=-227.0 C
-LOWER_BORE_BOTTOM_Z=? D
-B_SUPPORT_ARM=202.039 B/C
+LOWER_BRG = φ70×φ65×50
+LOWER_JOURNAL_D = 65
+LOWER_BRG_Z_IN = -177
+LOWER_BRG_Z_OUT = -227
+LOWER_BRG_CENTER_Z = -202
 ```
 
-底接口：
+正确承载链：
 
 ```text
-BOTTOM_IF_GUIDE_D=70
+BALL φ70孔
+↓
+φ70×φ65×50轴承
+↓
+BOTTOM_COVER一体φ65支承轴
+↓
+φ70定位Boss
+↓
+BODY
+```
+
+BODY下安装链：
+
+```text
+Z_BOTTOM_SHOULDER = -230
+BOTTOM_PILOT_ENGAGEMENT_CAD = 40.5
+Z_BODY_BOTTOM_IF_CAD = -230 - 40.5 = -270.5
+```
+
+BOTTOM_COVER当前：
+
+```text
+BOTTOM_PILOT_D=70
+BOTTOM_COVER_FLANGE_T_CAD≈20
 BOTTOM_IF_ORING=φ58×5.3 AED
-BOTTOM_IF_ORING_ROOT_D=61.6
+BOTTOM_IF_ORING_ROOT_D_CAD=61.6 C/R
 BOTTOM_IF_GASKET=φ80×φ70×3.2
-BOTTOM_IF_STUD=6×M12×55
-BOTTOM_IF_BCD=? D
-BOTTOM_IF_FLANGE_OD=? D
-Z_BODY_BOTTOM_IF=? D
+BOTTOM_STUD=6×M12×55
 ```
+
+底部AED O圈厂家最终拉伸/压缩/挤出间隙、最终BCD/OD仍未冻结。
 
 ---
 
-# 10. 支承载荷
+# 10. 支承载荷总账
 
 ```text
-F_SUPPORT=164.692kN
-RU_SUPPORT=81.037kN
-RL_SUPPORT=83.655kN
+F_SUPPORT = 164.692 kN     B/C工程包络
+R_UP      = 81.037 kN      B/C
+R_LOW     = 83.655 kN      B/C
 ```
 
-平均轴承面压需求：
+轴承平均面压需求：
 
 ```text
-上≈27.01MPa
-下≈25.74MPa
+UP ≈ 27.01 MPa
+LOW≈ 25.74 MPa
 ```
 
-316+PTFE真实许用面压仍D。
+316+PTFE真实牌号与允许面压仍 `D`。
 
 ---
 
-# 11. 球腔 / BODY中央承压壳
-
-球腔敏感性：
+# 11. 阀杆 / 键 / 驱动链
 
 ```text
-CLR1.5 → φ468 P-XREF
-CLR3.0 → φ471 P-XREF / 当前显示
-CLR6.0 → φ477 P-XREF
-BALL_BODY_CLR_RAD_FINAL=? D
+STEM_MAIN_D≈65 C+
+STEM_KEY_D=60 C
+STEM_SHOULDER_OD≈74 C+
+KEY=18×11×90 C/C+
+T_DESIGN_DRIVE=1800 N·m
 ```
 
-V29按局部 `d=471` 重算：
+按单键承担100% 1800N·m：
 
 ```text
-T_B1634_471=0.0163×471+4.70≈12.38 B/STD-screen
-T_BODY_471_TARGET≈15.38~17.38 B/C
-T_BODY_471_CAD≈16.38 B/C
+F_t≈60.0 kN
+τ_key≈37.04 MPa
+σ_key≈121.21 MPa
+```
+
+当前：
+
+```text
+Z_KEY_START_CAD≈339.8
+Z_KEY_END_CAD≈429.8
+Z_STEM_TOP_CAD≈430
+```
+
+最终键槽Kt、实际装键数量、阀杆总长仍需制造冻结。
+
+---
+
+# 12. BODY / BODY_COVER当前主骨架
+
+主壳体拓扑：
+
+```text
+BODY         = 主阀体 ×1
+BODY_COVER   = 侧装主阀盖/连接体 ×1
+STEM_COVER   = 上前盖
+BOTTOM_COVER = 下支承底盖
+BODY_JOINT_COUNT = 1
+```
+
+唯一主分界：
+
+```text
+X_BODY_JOINT_CAD=+232.5 C+
+X_BODY_JOINT_FINAL=? D
+```
+
+中央功能/承压包络：
+
+```text
+BODY_CAVITY_D_FUNC_CAD≈471 P-XREF/CAD
 BODY_OUTER_D_CENTRAL_CAD≈504 C
-BODY_OUTER_D_CENTRAL_FINAL=? D
 ```
 
-历史：
+主拆装口：
 
 ```text
-BODY_OUTER_D_CENTRAL_OLD=498.2 H/C
+MAIN_OPENING_D=480 C+
+BODY female pilot=φ480 H8
+BODY_COVER male pilot=φ480 f8
+MAIN_COVER_PILOT_L_CAD=20 C
+BALL through clearance=(480-465)/2=7.5mm/侧 B
 ```
 
-旧498.2仅是“φ471+2×d303处13.6壁厚”的简单外套值，不再是当前默认。
+主开口压力Boss：
+
+```text
+MAIN_OPENING_BOSS_OD_CAD≈520 C
+```
 
 ---
 
-# 12. NPS12 Class150 RF端法兰
+# 13. 主BODY joint密封 / 中法兰
 
-当前标准骨架：
+主O圈：
+
+```text
+BODY_JOINT_ORING=φ466×7
+MODE=RADIAL_STATIC_EXTERNAL_GROOVE
+GROOVE_DEPTH=5.7
+GROOVE_W=9.5
+GROOVE_ROOT_D=468.6
+ID_STRETCH≈0.56%
+NOM_RADIAL_SQUEEZE≈18.57%
+```
+
+缠绕垫：
+
+```text
+MID_GASKET=φ500×φ490×3.2
+```
+
+中法兰：
+
+```text
+MID_STUD_QTY=20
+MID_STUD=M20×85
+MID_BCD_CAD≈526.5
+MID_FLANGE_OD_CAD≈562.5
+```
+
+历史禁止项：
+
+```text
+φ450主止口          H/R
+φ466×7端面O圈       H/R
+M24主中法兰方案      H/R
+```
+
+---
+
+# 14. NPS12 Class150 RF端法兰
 
 ```text
 END_FLANGE_OD=482.6 A/STD
 END_FLANGE_BCD=431.8 A/STD
 END_FLANGE_HOLE_QTY=12 A/STD
 END_FLANGE_HOLE_D=25.4 A/STD
-END_FLANGE_BOLT=7/8IN A/STD
 END_RF_OD=381.0 A/STD
-END_FLANGE_T_BASE_MIN≈30.2 A/STD-reference
-END_RF_H_CAD≈1.6 C/英制表口径
-END_FLANGE_AXIAL_TO_BACK_CAD≈31.8 B/C
+END_FLANGE_BODY_T_CAD=30.2 C/STD-reference
+END_RF_H_CAD=1.6 C
 ```
 
-X坐标：
+端法兰背面站位：
 
 ```text
-X_RIGHT_END_FLANGE_BACK_CAD=+273.2
-X_LEFT_END_FLANGE_BACK_CAD=-273.2
+X_END_FLANGE_BACK_L_CAD≈-273.2
+X_END_FLANGE_BACK_R_CAD≈+273.2
 ```
 
-历史：
+历史 `RF OD≈355.6` → `H/R`。
+
+---
+
+# 15. F25 / ADAPTER 当前总账
 
 ```text
-END_RF_OD≈355.6 / 14in → H/R
+ADAPTER_OD_CAD=300 C
+ADAPTER_T_CAD=24 C
+Z_ADAPTER_BOTTOM_CAD=313.3 C
+Z_F25_INTERFACE_CAD=337.3 C
+
+F25_BOLT_PCD=254
+F25_BOLT_QTY=8
+F25_THREAD_D=16
+F25_CLEAR_HOLE_D=17.5
+F25_THREAD_DEPTH_MIN=24
+F25_HOLE_START_ANGLE=22.5°
+F25_HOLE_STEP=45°
+```
+
+厂家蜗轮箱正式输入接口未关闭前：
+
+```text
+F25 = 当前CAD主方案
+≠ 最终采购接口冻结
 ```
 
 ---
 
-# 13. BODY X向骨架
+# 16. 核心装配关系表
 
-```text
-X_BODY_LEFT_END=-305
-X_BODY_RIGHT_JOINT=+232.5
-L_BODY_MAIN_CAD=537.5
-```
-
-左流道：
-
-```text
-X=-305~ -272：φ303
-X=-272~ -232.5：φ303→φ382 / 45° / L39.5
-X=-232.5：左座腔外侧功能站（不是第二个BODY joint）
-```
-
-当前：
-
-```text
-X_LEFT_BORE_TAPER_END_CAD=-272.0
-X_LEFT_BORE_TAPER_START_CAD=-232.5
-LEFT_BORE_TAPER_ANGLE_CAD=45
-LEFT_BORE_TAPER_L_CAD=39.5
-```
-
----
-
-# 14. BODY右侧主拆装口 / V28
-
-关键主方案：
-
-```text
-MID_ASSEMBLY_OPENING_D_CAD=480 C+
-MID_PILOT_FEMALE_OWNER=BODY
-MID_PILOT_FEMALE_FIT=H8 A-policy
-```
-
-球体通过：
-
-```text
-480-465=15mm直径
-BALL_THROUGH_OPENING_CLEAR_RAD=7.5mm/侧 B/C+
-```
-
-局部壁厚：
-
-```text
-T_B1634_480=12.524 B/STD-screen
-T_BODY_480_CAD=16.524 B/C
-BODY_JOINT_PRESSURE_BOSS_OD_MIN≈513.05 B/C
-BODY_JOINT_PRESSURE_BOSS_OD_CAD=520 C
-```
-
-主中法兰环再扩至：
-
-```text
-MID_FLANGE_OD_CAD≈562.5 C
-```
-
-BODY主孔从X=232.5向内到：
-
-```text
-X_BODY_OPENING_INNER_CAD=212.5
-```
-
-之后φ480向φ471中央球腔仅需4.5mm/侧的小过渡。
-
----
-
-# 15. BODY_COVER轴向骨架
-
-BODY_COVER对F2F贡献：
-
-```text
-X_BODY_JOINT_CAD=232.5
-X_END_FACE_R=305
-L_BODY_COVER_TOTAL_CAD=72.5
-```
-
-由于止口向BODY内插20：
-
-```text
-X_MID_PILOT_TIP_CAD=212.5
-BODY_COVER实际X包络=212.5~305
-```
-
-内部：
-
-```text
-X=232.5：φ382
-↓ 45° /39.5
-X=272.0：φ303
-↓ φ303
-X=305：RF
-```
-
-```text
-BODY_COVER_BORE_D0=382
-BODY_COVER_BORE_D1=303
-BODY_COVER_BORE_TAPER_ANGLE_CAD=45
-BODY_COVER_BORE_TAPER_L_CAD=39.5
-X_BORE_TAPER_END_CAD=272.0
-```
-
-端法兰背面：
-
-```text
-X_END_FLANGE_BACK_CAD=273.2
-```
-
-主分界到端法兰背面40.7mm，与内锥39.5mm仅差约1.2mm，是 `X_BODY_JOINT_CAD=232.5` 的独立几何验证之一。
-
----
-
-# 16. BODY—BODY_COVER φ480 H8/f8定位
-
-当前：
-
-```text
-MID_PILOT_D_CAD=480 C+
-MID_PILOT_D_FINAL=? D
-MID_PILOT_MALE_OWNER=BODY_COVER
-MID_PILOT_MALE_FIT=f8 A-policy
-MID_PILOT_INSERT_L_CAD=20 C
-MID_PILOT_INSERT_L_FINAL=? D
-```
-
-ISO286 450~500mm尺寸段参考：
-
-```text
-BODY H8孔≈480.000~480.110
-BODY_COVER f8轴≈479.814~479.924
-直径间隙≈0.076~0.296
-径向间隙≈0.038~0.148
-```
-
-止口X功能分段：
-
-```text
-X=212.5~217.5：前端导入/圆柱段5.0
-X=217.5~227.0：O圈槽轴宽9.5
-X=227.0~232.5：槽后金属带5.5
-```
-
-变量：
-
-```text
-MID_PILOT_LEAD_L_CAD=5.0
-X_MID_ORING_GROOVE_START_CAD=217.5
-X_MID_ORING_GROOVE_END_CAD=227.0
-X_MID_ORING_GROOVE_CENTER_CAD=222.25
-MID_PILOT_BACK_LAND_CAD=5.5
-```
-
----
-
-# 17. 主BODY joint O圈 / V28纠错
-
-BOM：
-
-```text
-BODY_JOINT_ORING=VITON φ466×7 A/C+
-```
-
-当前功能：
-
-```text
-MID_ORING_MODE=RADIAL_STATIC_EXTERNAL_GROOVE C+
-MID_ORING_GROOVE_OWNER_CAD=BODY_COVER C+
-MID_ORING_GROOVE_OWNER_FINAL=? D
-```
-
-公司φ7静槽：
-
-```text
-MID_ORING_GROOVE_DEPTH=5.7 A-policy
-MID_ORING_GROOVE_AXIAL_W=9.5 A-policy
-MID_ORING_LEAD_Z=5
-MID_ORING_R1=1
-MID_ORING_R2=0.2
-```
-
-在φ480凸止口外圆开槽：
-
-```text
-MID_ORING_GROOVE_ROOT_D_CAD
-=480-2×5.7
-=468.6 B/C+
-```
-
-O圈ID拉伸：
-
-```text
-(468.6-466)/466≈0.56% B/C+
-```
-
-名义径向压缩：
-
-```text
-(7-5.7)/7≈18.57% B
-```
-
-仅考虑H8/f8配合间隙后参考压缩约：
-
-```text
-16.5~18.0% B/C
-```
-
-历史：
-
-```text
-MID_ORING_MODE=AXIAL_FACE_STATIC → H/R
-端面槽ID/OD=463.5/482.5 → H/R
-MID_PILOT_D=450 → H/R
-```
-
----
-
-# 18. 主中法兰缠绕垫 / 螺栓圈
-
-```text
-MID_GASKET=φ500×φ490×3.2 A/C+
-MID_GASKET_ID=490
-MID_GASKET_OD=500
-MID_GASKET_T_FREE=3.2
-MID_GASKET_RADIAL_W=5
-```
-
-φ480止口到垫片ID：
-
-```text
-MID_LAND_PILOT_TO_GASKET_CAD=(490-480)/2=5.0 B/C+
-```
-
-公司BCD公式：
-
-```text
-BCD=gasket OD+bolt hole D+3~6
-```
-
-当前：
-
-```text
-MID_BOLT_HOLE_D_CAD=22
-MID_BCD_MIN=525
-MID_BCD_MAX=528
-MID_BCD_CAD=526.5
-MID_SPOTFACE_D_CAD=36
-MID_FLANGE_OD_CAD=562.5
-```
-
-垫片OD到φ22孔内缘：
-
-```text
-MID_LAND_GASKET_TO_BOLT_HOLE_CAD=2.25mm
-```
-
-spotface最外缘与中法兰OD按公司公式正好相切。
-
----
-
-# 19. M20×85体盖紧固 / 轴向预算
-
-BOM：
-
-```text
-MID_STUD=M20×85 ×20 A/C+
-MID_NUT=M20 ×20 A/C+
-```
-
-当前拓扑：
-
-```text
-BODY侧：20×M20螺纹锚固孔
-BODY_COVER侧：20×φ22通孔 + 外侧M20螺母/spotface
-```
-
-GB/T901参考：
-
-```text
-P=2.5
-标准端部螺纹长度b=52
-L=85
-2b>85，因此禁止“85-52-52”求光杆长度
-```
-
-螺母：
-
-```text
-NUT_M≈19.0~20.3
-```
-
-公司露牙：
-
-```text
-2~3牙≈5~7.5mm
-```
-
-所以：
-
-```text
-anchor+grip≈57.2~61.0mm
-```
-
-V25下限方案：
-
-```text
-20锚固 +39夹持 → H/C lower-bound
-```
-
-V26当前优化：
-
-```text
-MID_STUD_ENGAGE_CAD=30 C
-MID_GRIP_MIN_CAD=27.2
-MID_GRIP_MAX_CAD=31.0
-MID_BODY_COVER_GRIP_CAD=29 C
-X_MID_NUT_BEARING_CAD=261.5
-```
-
-中值闭合：
-
-```text
-30锚固+29夹持+约20螺母+约6露牙≈85
-```
-
-最终：
-
-```text
-MID_STUD_ENGAGE_FINAL=? D
-MID_BODY_TAPPED_DEPTH_FINAL=? D
-MID_BODY_THREAD_BOTTOM_METAL_FINAL=? D
-MID_BODY_COVER_GRIP_FINAL=? D
-```
-
----
-
-# 20. B16.34主中法兰校核
-
-§6.4.2.1面积门：
-
-```text
-MID_AG≈196349.5mm²
-MID_AS_ONE≈244.79mm²
-MID_AB_ACTUAL≈4895.9mm²
-MID_AB_REQUIRED≈4207.5mm²
-MID_BOLT_AREA_MARGIN≈1.164
-```
-
-结论：`PRELIMINARY PASS`，面积裕量约+16.4%。
-
-§6.4.2.3截面模量第一轮：
-
-```text
-MID_ZBN_MIN≈227752mm³
-M20线程根径参考≈16.933
-MID_AB_ROOT_TOTAL≈4503.8mm²
-MID_ZFB_CAD≈592812mm³
-```
-
-用保守筛查：
-
-```text
-Sa=138MPa
-Sb_screen=250MPa
-Zfb×Sa/Sb≈327232mm³ > Zbn
-MID_SECTION_MOD_MARGIN_SCREEN≈1.437
-```
-
-结论：
-
-```text
-R21_02_SECTION_MODULUS=PRELIM_PASS
-```
-
-最终仍需正式BPVC II-D `Sb(WCB,T)` + 真实非圆截面/孔削弱校核。
-
----
-
-# 21. BODY_COVER承压颈 / 法兰环分层
-
-V27规则继续有效，但起点由V28纠正：
-
-```text
-BODY_COVER_NECK_OD_JOINT_CAD=480 C+
-END_HUB_OD_WN_REF≈365.3 P-XREF
-BODY_COVER_NECK_OD_END_FINAL=? D
-```
-
-局部内孔：
-
-```text
-φ382 → φ303
-```
-
-在主分界处：
-
-```text
-(480-382)/2=49mm径向实体肉厚
-```
-
-远大于局部B16.34+公司附加要求。
-
-法兰环理解：
-
-```text
-主中法兰φ562.5 = 压力颈外叠加法兰环
-端法兰φ482.6 = 端颈外叠加标准法兰环
-```
-
-禁止把整个72.5mm画成φ562.5大圆柱。
-
----
-
-# 22. BODY附件
-
-12寸BOM：
-
-```text
-DRAIN_PORT_SIZE=1_NPT ×1
-VENT_PORT_SIZE=1_NPT ×1
-SEAT_GREASE_PORT_SIZE=3/8_NPT ×2
-CHECK_PORT_SIZE=1/4_NPT ×2
-```
-
-1"NPT有效螺纹长度参考约17.34mm，大于中央旧13.6/当前局部壁厚某些薄区，因此：
-
-```text
-VENT_BOSS_REQUIRED=YES C+
-DRAIN_BOSS_REQUIRED=YES C+
-VENT_BOSS_H_FINAL=? D
-DRAIN_BOSS_H_FINAL=? D
-```
-
-绝对XYZ需避开上/下接口、主中法兰螺栓、注脂孔和铸造筋。
-
----
-
-# 23. V30总装干涉预检查
-
-| 检查项 | 结果 | 当前余量 |
+| Mate ID | 装配关系 | 当前规则 |
 |---|---|---|
-| φ465球体通过φ480主口 | PASS | 7.5mm/侧 |
-| φ380阀座通过φ480主口 | PASS | 50mm/侧 |
-| φ380阀座装入φ382座孔 | PASS | 1mm/侧 |
-| φ480 H8/f8止口 | PASS | 直径间隙约0.076~0.296参考 |
-| O圈配合公差后压缩 | PASS prelim | 约16.5~18.0% |
-| 20mm止口容纳O圈槽 | PASS | 5+9.5+5.5=20 |
-| φ480止口→φ490垫片 | PASS | 5mm径向带 |
-| φ500垫片→M20孔 | PASS | 2.25mm径向带 |
-| spotface→中法兰OD | PASS | 公司公式相切 |
-| 中法兰→端法兰X空间 | PASS CAD | 11.7mm |
-| 内锥与29mm夹持 | PASS | 不同半径，可轴向重叠 |
+| M001 | BALL中心 ↔ O | 球心固定O，流道X，支承Z |
+| M002/M003 | 左右SEAT ↔ BALL | 在 `X=±166.036` 真实球面接触 |
+| M004/M005 | 左右SEAT导向 | 同轴X，保留规定轴向浮动 |
+| M006 | φ342 ↔ φ342.4 | 阀座主导向 |
+| M007 | φ323.6 ↔ φ323.8 | 第二导向候选 |
+| M008 | φ380 ↔ φ382 | 阀座大端导向 |
+| M009 | BALL φ105 ↔ 上轴承OD105 | 上主支承 |
+| M010 | 上轴承ID100 ↔ STEM_COVER φ100轴 | 上主支承 |
+| M011 | STEM φ65 ↔ 阀杆导向轴承ID65 | 阀杆导向 |
+| M012 | 导向轴承OD70 ↔ STEM_COVER φ70孔 | 阀杆导向 |
+| M013 | BALL φ70 ↔ 下轴承OD70 | 下主支承 |
+| M014 | 下轴承ID65 ↔ BOTTOM_COVER φ65轴 | 下主支承 |
+| M015 | STEM_COVER φ105 Boss ↔ BODY上接口 | Z≈+264.5 CAD |
+| M016 | BOTTOM_COVER φ70 Boss ↔ BODY下接口 | Z≈-270.5 CAD |
+| M017A | BODY φ480 H8 ↔ BODY_COVER φ480 f8 | 同轴间隙定位 |
+| M017B | BODY ↔ BODY_COVER分界端面 | X=+232.5 CAD |
+| M017C | φ466×7 O圈 ↔ φ480孔/凸止口 | 径向静密封 |
+| M017D | φ500×φ490缠绕垫 | 主中法兰端面密封 |
+| M017E | 20×M20×85 | BODY锚固 + COVER通孔 + 螺母夹紧 |
+| M018 | ADAPTER/F25 ↔ STEM_COVER/STEM | Z≈337.3接口 |
 
-当前没有发现必须推翻主骨架的硬干涉。
-
----
-
-# 24. 核心装配关系
-
-| Mate ID | 装配关系 |
-|---|---|
-| M001 | 球体中心固定O，流道X、支承Z |
-| M002/3 | 左右DEVLON与R232.5球面形成密封接触 |
-| M004/5 | 左右阀座同轴X，只保留规定轴向浮动 |
-| M006 | φ342阀座导向 ↔ φ342.4座孔 |
-| M007 | φ323.6导向段 ↔ φ323.8孔 |
-| M008 | φ380阀座大端 ↔ φ382座孔 |
-| M009 | 球体φ105上孔 ↔ 上主轴承OD105 |
-| M010 | 上主轴承ID100 ↔ STEM_COVER一体φ100轴颈 |
-| M011 | 阀杆φ65 ↔ 阀杆导向轴承ID65 |
-| M012 | 阀杆导向轴承OD70 ↔ STEM_COVER φ70孔 |
-| M013 | 球体φ70下孔 ↔ 下轴承OD70 |
-| M014 | 下轴承ID65 ↔ BOTTOM_COVER一体φ65轴颈 |
-| M015 | STEM_COVER φ105凸台 ↔ BODY上接口 |
-| M016 | BOTTOM_COVER φ70凸台 ↔ BODY下接口 |
-| M017A | BODY φ480 H8孔 ↔ BODY_COVER φ480 f8凸止口，同轴间隙定位 |
-| M017B | BODY/BODY_COVER主分界端面闭合，X=232.5 CAD |
-| M017C | φ466×7 O圈在BODY_COVER凸止口外圆槽内，与BODY φ480孔径向静密封 |
-| M017D | φ500×φ490缠绕垫在主中法兰端面密封 |
-| M017E | 20×M20×85螺柱锚固BODY、穿BODY_COVERφ22孔、外侧M20螺母夹紧 |
-| M018 | 上球体轴承轨与阀杆导向轨允许Z向功能重叠 |
-
-旧“BODY↔左右两个主阀盖” → H/R。
+禁止使用随机 `Face1/Edge7` 作为长期自动装配身份。
 
 ---
 
-# 25. SolidWorks当前变量块
+# 17. SolidWorks允许进入当前参数文件的范围
+
+允许进入 CAD 草模/Skeleton：
 
 ```text
-# BASE
-BALL_CENTER_O=(0,0,0)
-FLOW_AXIS=X
-SUPPORT_AXIS=Z
-VALVE_F2F=610
-X_END_FACE_L=-305
-X_END_FACE_R=305
+A
+A-policy（按规则）
+B
+C+
+C
+明确批准的C-space / CAD envelope
+```
 
-# MAIN BODY TOPOLOGY
-BODY_PIECE_COUNT=2
-BODY_QTY=1
-BODY_COVER_QTY=1
-BODY_JOINT_COUNT=1
-X_BODY_JOINT_CAD=232.5
-X_BODY_JOINT_FINAL=?
+禁止自动写死：
 
-# BALL
-BORE_D=303
-BALL_OD=465
+```text
+D
+H
+H/R
+未关闭R
+```
+
+当前仍不应作为制造冻结自动参数的典型项：
+
+```text
+T_DESIGN
+P_RATING_ALLOWED
+X_BODY_JOINT_FINAL
+BODY最终壁厚/铸造外形
+上下接口最终公差/BCD/OD
+DEVLON最终热配合
+底部AED O圈最终厂家槽
+316+PTFE真实许用面压
+GEARBOX真实接口
+STEM_TOTAL_LEN_FINAL
+```
+
+---
+
+# 18. 当前 GlobalVariables 与本账的关系
+
+唯一当前参数源：
+
+[Q347F_12in_Class150_00_SKELETON_GlobalVariables_V1.txt](./Q347F_12in_Class150_00_SKELETON_GlobalVariables_V1.txt)
+
+它是**CAD执行输入**，不是完整工程计算书。
+
+原则：
+
+```text
+计算主线
+↓
+本数字总账
+↓
+GlobalVariables
+↓
+SolidWorks
+```
+
+禁止从 SolidWorks 模型反向抄一个尺寸后，未经工程依据就把它提升为本账的 A/B/C+ 值。
+
+---
+
+# 19. S03实机“as-built”结果
+
+当前真正运行通过：
+
+```text
+S00 ENVIRONMENT = PASS
+S01 PARAMETERS  = PASS
+S02 SOLIDWORKS  = PASS
+S03 SKELETON    = PASS
+```
+
+S03验证：
+
+```text
+BALL_CENTER_O=(0,0,0) created
+AXIS_X_FLOW created
+AXIS_Z_SUPPORT created
+
+X station planes = 11 / 11 world-coordinate readback PASS
+Z station planes = 16 / 16 world-coordinate readback PASS
+
+RefPlaneCount = 33
+RefAxisCount  = 2
+
+ForceRebuild = PASS
+Feature errors = 0
+What's Wrong errors = 0
+warnings = 0
+
+00_SKELETON.SLDPRT published
+```
+
+当前输出：
+
+```text
+SolidWorks_AutoBuild_Q347F_12in/02_output/00_SKELETON.SLDPRT
+```
+
+---
+
+# 20. S03过程中发现的问题，对本账的影响
+
+已证明属于软件/CAD实现问题而**不是设计参数重算**的问题：
+
+```text
+PowerShell Parser变量冒号
+CMD中文编码
+SW安装路径发现
+Interop DLL运行时装载
+System.__ComObject强类型边界
+EquationMgr Add2/Add3与角度表达
+SolidWorks原生基准面映射
+RefPlane坐标回读方法
+staging / publish / resume
+```
+
+因此没有依据因为这些API问题去推翻：
+
+```text
+F2F=610
+BORE=303
+BALL=465
 BALL_R=232.5
-BALL_X_L=-174
-BALL_X_R=174
-BALL_UPPER_BORE_D=105
-BALL_UPPER_BORE_EFFECTIVE_L=28.9
-BALL_UPPER_BORE_TOTAL_DEPTH=?
-BALL_LOWER_BORE_D=70
-BALL_LOWER_BORE_EFFECTIVE_L=50
-BALL_LOWER_BORE_TOTAL_DEPTH=?
-
-# SEAT
-X_CONTACT_L=-166.036
-X_CONTACT_R=166.036
-SEAT_D9=323.88
-SEAT_D10=327.13
-SEAT_D11=342
-SEAT_GUIDE_BORE=342.4
-SEAT_PILOT_2=323.6
-SEAT_GUIDE_2=323.8
-SPRING_PCD=362
-SEAT_BIG_OD=380
-SEAT_BIG_BORE=382
-WSEAT_ENV=58
-
-# SUPPORT / STEM
-UP_BALL_BRG_OD=105
-UP_BALL_BRG_ID=100
-UP_BALL_BRG_L=30
-UP_BRG_CENTER_Z=208.6
-UP_JOURNAL_D=100
-STEM_MAIN_D=65
-STEM_KEY_D=60
-F0_Z=201.4
-STEM_GUIDE_OD=70
-STEM_GUIDE_ID=65
-STEM_GUIDE_L=50
-Z_TOP_STEM_FUNC_CAD=318.1
-LOWER_BRG_OD=70
-LOWER_BRG_ID=65
-LOWER_BRG_L=50
-LOWER_BRG_CENTER_Z=-202.0
-LOWER_BORE_MOUTH_Z=-227.0
-LOWER_BORE_BOTTOM_Z=?
-LOWER_JOURNAL_D=65
-
-# TOP / BOTTOM IF
-TOP_IF_GUIDE_D=105
-TOP_IF_ORING_ROOT_D=96.6
-TOP_IF_GASKET_ID=105
-TOP_IF_GASKET_OD=115
-Z_BODY_TOP_IF=?
-BOTTOM_IF_GUIDE_D=70
-BOTTOM_IF_ORING_ROOT_D=61.6
-BOTTOM_IF_GASKET_ID=70
-BOTTOM_IF_GASKET_OD=80
-BOTTOM_IF_STUD_QTY=6
-BOTTOM_IF_STUD_SIZE=M12
-BOTTOM_IF_STUD_L=55
-BOTTOM_IF_BCD=?
-BOTTOM_IF_FLANGE_OD=?
-Z_BODY_BOTTOM_IF=?
-
-# BODY CAVITY / WALL
-BALL_BODY_CLR_RAD=3.0
-BODY_CAVITY_D_FUNC=471
-BALL_BODY_CLR_RAD_FINAL=?
-T_B1634_303=9.6
-T_B1634_471=12.38
-T_BODY_471_CAD=16.38
-BODY_OUTER_D_CENTRAL_OLD=498.2
-BODY_OUTER_D_CENTRAL_CAD=504
-BODY_OUTER_D_CENTRAL_FINAL=?
-
-# END FLANGE
-END_FLANGE_OD=482.6
-END_FLANGE_BCD=431.8
-END_FLANGE_HOLE_D=25.4
-END_FLANGE_HOLE_QTY=12
-END_FLANGE_BOLT=7/8IN
-END_RF_OD=381.0
-END_FLANGE_T_BASE_MIN=30.2
-END_RF_H_CAD=1.6
-END_FLANGE_AXIAL_TO_BACK_CAD=31.8
-X_END_FLANGE_BACK_CAD=273.2
-X_LEFT_END_FLANGE_BACK_CAD=-273.2
-
-# BODY AXIAL
-X_BODY_LEFT_END=-305
-X_BODY_RIGHT_JOINT=232.5
-L_BODY_MAIN_CAD=537.5
-X_LEFT_BORE_TAPER_END_CAD=-272.0
-X_LEFT_BORE_TAPER_START_CAD=-232.5
-LEFT_BORE_TAPER_ANGLE_CAD=45
-LEFT_BORE_TAPER_L_CAD=39.5
-
-# BODY JOINT OPENING / PILOT
-MID_ASSEMBLY_OPENING_D_CAD=480
-MID_PILOT_D_CAD=480
-MID_PILOT_D_FINAL=?
-MID_PILOT_FEMALE_OWNER=BODY
-MID_PILOT_FEMALE_FIT=H8
-MID_PILOT_MALE_OWNER=BODY_COVER
-MID_PILOT_MALE_FIT=f8
-MID_PILOT_INSERT_L_CAD=20
-MID_PILOT_INSERT_L_FINAL=?
-X_MID_PILOT_TIP_CAD=212.5
-MID_PILOT_LEAD_L_CAD=5.0
-MID_PILOT_BACK_LAND_CAD=5.5
-BALL_THROUGH_OPENING_CLEAR_RAD=7.5
-T_B1634_480=12.524
-T_BODY_480_CAD=16.524
-BODY_JOINT_PRESSURE_BOSS_OD_MIN=513.05
-BODY_JOINT_PRESSURE_BOSS_OD_CAD=520
-
-# RADIAL MAIN O-RING
-MID_ORING_MODE=RADIAL_STATIC_EXTERNAL_GROOVE
-MID_ORING_ID=466
-MID_ORING_CS=7
-MID_ORING_GROOVE_DEPTH=5.7
-MID_ORING_GROOVE_AXIAL_W=9.5
-MID_ORING_GROOVE_ROOT_D_CAD=468.6
-MID_ORING_ID_STRETCH_CAD=0.56
-MID_ORING_RADIAL_SQUEEZE_NOM=18.57
-X_MID_ORING_GROOVE_START_CAD=217.5
-X_MID_ORING_GROOVE_END_CAD=227.0
-X_MID_ORING_GROOVE_CENTER_CAD=222.25
-MID_ORING_GROOVE_OWNER_CAD=BODY_COVER
-MID_ORING_GROOVE_OWNER_FINAL=?
-
-# GASKET / MAIN FLANGE
-MID_GASKET_ID=490
-MID_GASKET_OD=500
-MID_GASKET_T_FREE=3.2
-MID_GASKET_RADIAL_W=5
-MID_LAND_PILOT_TO_GASKET_CAD=5.0
-MID_BCD_CAD=526.5
-MID_BOLT_HOLE_D_CAD=22
-MID_SPOTFACE_D_CAD=36
-MID_FLANGE_OD_CAD=562.5
-MID_LAND_GASKET_TO_BOLT_HOLE_CAD=2.25
-
-# MAIN STUD
-MID_STUD_STANDARD=GBT901
-MID_STUD_SIZE=M20
-MID_STUD_P=2.5
-MID_STUD_L=85
-MID_STUD_END_THREAD_B=52
-MID_STUD_QTY=20
-MID_NUT_SIZE=M20
-MID_NUT_QTY=20
-MID_STUD_ENGAGE_MIN_REF=20
-MID_STUD_ENGAGE_CAD=30
-MID_STUD_ENGAGE_FINAL=?
-MID_BODY_COVER_GRIP_CAD=29
-MID_BODY_COVER_GRIP_FINAL=?
-X_MID_NUT_BEARING_CAD=261.5
-MID_BODY_TAPPED_DEPTH_FINAL=?
-MID_BODY_THREAD_BOTTOM_METAL_FINAL=?
-
-# BODY COVER AXIAL
-L_BODY_COVER_TOTAL_CAD=72.5
-BODY_COVER_BORE_D0=382
-BODY_COVER_BORE_D1=303
-BODY_COVER_BORE_TAPER_ANGLE_CAD=45
-BODY_COVER_BORE_TAPER_L_CAD=39.5
-X_BORE_TAPER_END_CAD=272.0
-MID_NECK_AXIAL_RESERVE_CAD=11.7
-BODY_COVER_NECK_OD_JOINT_CAD=480
-END_HUB_OD_WN_REF=365.3
-BODY_COVER_NECK_OD_END_FINAL=?
-
-# ISO FIT REFERENCE
-MID_PILOT_H8_ES_REF=0.110
-MID_PILOT_H8_EI_REF=0
-MID_PILOT_F8_ES_REF=-0.076
-MID_PILOT_F8_EI_REF=-0.186
-MID_PILOT_CLEAR_D_MIN_REF=0.076
-MID_PILOT_CLEAR_D_MAX_REF=0.296
-MID_PILOT_CLEAR_RAD_MIN_REF=0.038
-MID_PILOT_CLEAR_RAD_MAX_REF=0.148
-MID_ORING_SQUEEZE_FIT_MIN_REF=16.46
-MID_ORING_SQUEEZE_FIT_MAX_REF=18.03
-
-# B16.34 JOINT SCREEN
-MID_AG=196349.5
-MID_AS_ONE=244.79
-MID_AB_ACTUAL=4895.9
-MID_AB_REQUIRED=4207.5
-MID_BOLT_AREA_MARGIN=1.164
-MID_ZBN_MIN=227752
-MID_ZFB_CAD=592812
-MID_SECTION_MOD_MARGIN_SCREEN=1.437
-R21_02_SECTION_MODULUS=PRELIM_PASS
-
-# BODY ACCESSORIES
-DRAIN_PORT_SIZE=1_NPT
-DRAIN_PORT_QTY=1
-VENT_PORT_SIZE=1_NPT
-VENT_PORT_QTY=1
-SEAT_GREASE_PORT_SIZE=3/8_NPT
-SEAT_GREASE_PORT_QTY=2
-CHECK_PORT_SIZE=1/4_NPT
-CHECK_PORT_QTY=2
-VENT_BOSS_REQUIRED=YES
-DRAIN_BOSS_REQUIRED=YES
-VENT_BOSS_H_FINAL=?
-DRAIN_BOSS_H_FINAL=?
-
-# LOAD
-F_SUPPORT=164.692
-A_SUPPORT_ARM=208.566
-B_SUPPORT_ARM=202.039
-RU_SUPPORT=81.037
-RL_SUPPORT=83.655
-
-# PRESSURE RATING
-P_LOAD_CALC=2.00
-T_DESIGN=?
-P_RATING_ALLOWED=?
-
-# RETIRED
-X_BODY_COVER_IF_L=H/R
-X_BODY_COVER_IF_R=H/R
-MID_PILOT_D_OLD=450 H/R
-MID_ORING_AXIAL_FACE_MODE=H/R
-MID_ORING_FACE_GROOVE_ID_OLD=463.5 H/R
-MID_ORING_FACE_GROOVE_OD_OLD=482.5 H/R
-BODY_OUTER_D_CENTRAL_OLD=498.2 H/C
-END_RF_OD_OLD=355.6 H/R
-MID_STUD_ENGAGE_OLD=20 H/C-lower-bound
-MID_BODY_COVER_GRIP_OLD=39 H/C
-M24_MAIN_BODY_JOINT=H/R
-M24_GROUP_FUNCTION=?
+X_BODY_JOINT_CAD=232.5
+Z_BODY_TOP_IF_CAD=264.5
+Z_BODY_BOTTOM_IF_CAD=-270.5
+F25_PCD=254
 ```
 
----
-
-# 26. 当前开放项
-
-| ID | 开放项 | 状态 |
-|---|---|---|
-| RD001 | 最终球体—BODY径向间隙 / 最终球腔直径 | D |
-| RD002 | X_BODY_JOINT_FINAL | D |
-| RD003 | φ480主止口最终名义尺寸/公差表版本 | D |
-| RD004 | MID_PILOT_INSERT_L_FINAL | D |
-| RD005 | O圈槽/止口/O圈公差总叠加 | R/D |
-| RD006 | VITON具体牌号/硬度/AED能力 | R/D |
-| RD007 | M20最终有效旋合/盲孔总深/孔底肉厚 | D |
-| RD008 | BODY_COVER最终夹持厚度 | D |
-| RD009 | 主中法兰真实预紧/局部弯曲/最终FEA | R/D |
-| RD010 | 正式BPVC WCB `Sb(T)`截面模量复核 | R/D |
-| RD011 | BODY中央最终铸造外形/圆角 | D |
-| RD012 | STEM_COVER安装面Z | D |
-| RD013 | BOTTOM_COVER安装面Z / BCD / OD | D |
-| RD014 | 上/下球孔总加工深度 | D |
-| RD015 | 316+PTFE许用面压 | D |
-| RD016 | 最终设计温度T_DESIGN | R/D |
-| RD017 | 2.00MPa精确设计压力还是1.96的机械圆整 | R/D |
-| RD018 | M24×100×10实际装配归属 | D |
-| RD019 | VENT/DRAIN最终Boss高度/XYZ | D |
-| RD020 | 端法兰RF高度/厚度最终采用的ASME B16.5单位表口径 | D/A待版次冻结 |
+需要修正的是**文档版本、参数身份和软件映射规则**。
 
 ---
 
-# 27. 历史纠错总表
+# 21. 当前历史纠错总表
+
+| 历史值/解释 | 当前处理 |
+|---|---|
+| 上主轴承 `φ70×φ65×50` | H/R；真实上球体主轴承为 `φ105×φ100×30` |
+| 独立下支承轴 | H/R；当前底盖一体 `φ65` 支承轴 |
+| 左右各一只主阀盖 | H/R；当前 `BODY + BODY_COVER` 两片式，一个主分界 |
+| 主中法兰 M24 | H/R；当前 20×M20×85 |
+| RF OD≈φ355.6 | H/R；当前 φ381 |
+| 主止口φ450 | H/R；球体φ465无法通过，当前φ480 |
+| φ466×7端面O圈 | H/R；当前φ480止口外圆径向静密封 |
+| BODY中央外包络φ498.2作为当前默认 | H；当前CAD≈φ504 |
+| `+227`=BODY上安装面 | H/R；当前肩面≈+226.9，安装面≈+264.5 |
+| `-230`=BODY下安装面 | H/R；当前肩面=-230，安装面≈-270.5 |
+| Front=XZ / Top=XY / Right=YZ永久硬绑定 | H/R；S03按世界几何识别原生平面 |
+
+---
+
+# 22. 当前制造冻结门
+
+仍需关闭：
 
 ```text
-H/R 上主轴承=φ70×φ65×50
-→ 当前φ105×φ100×30
-
-H/R Z_RU=Z_U0_ABS+27
-→ 当前+208.6
-
-H/R 独立下支承轴
-→ BOTTOM_COVER一体φ65轴颈
-
-H/R LEFT COVER—BODY—RIGHT COVER
-→ BODY+BODY_COVER两片式，一个主分界
-
-H/R 主中法兰M24×100×10
-→ 当前20×M20×85；M24组功能D
-
-H/R RF OD≈φ355.6
-→ 当前φ381.0
-
-H/R 主止口φ450
-→ 球体φ465无法通过；当前φ480
-
-H/R φ466×7端面O圈
-→ 当前BODY_COVER φ480凸止口外圆径向静密封
-
-H/R 端面O圈槽φ463.5~φ482.5
-→ 当前外圆槽rootφ468.6、轴宽9.5
-
-H/C BODY中央外包络φ498.2
-→ 按d471局部壁厚重算，当前φ504
-
-H/C M20锚固20 / BODY_COVER夹持39
-→ 20只保留下限参考；当前30 / 29
+T_DESIGN
+P_RATING_ALLOWED
+2.00MPa最终项目合规口径
+DEVLON最终牌号/热配合
+VITON最终牌号/硬度/AED要求
+X-750热处理/许用应力
+316+PTFE许用面压
+BALL上下孔最终总深/驱动槽最终强度公差
+BODY/BODY_COVER最终壁厚/铸造圆角
+φ480 H8/f8最终公差叠加
+主中法兰最终预紧/局部弯曲/FEA
+上/下Boss最终配合公差
+上/下盖最终BCD/OD
+底部AED O圈厂家最终槽
+蜗轮箱真实输入接口
+阀杆最终总长/键槽Kt/实际装键数量
 ```
 
+这些可以不阻塞当前 CAD 草模，但会阻塞制造冻结。
+
 ---
 
-# 28. 当前SolidWorks文件层级
+# 23. 当前下一步
+
+唯一下一阶段：
 
 ```text
-00_SKELETON.SLDPRT
+S04 BALL
+↓
 01_BALL.SLDPRT
-02_LEFT_SEAT.SLDASM
-03_RIGHT_SEAT.SLDASM
-04_STEM_COVER.SLDPRT
-05_STEM.SLDPRT
-06_BOTTOM_COVER.SLDPRT
-07_BODY.SLDPRT
-08_BODY_COVER.SLDPRT
-09_MAIN_BODY_JOINT_FASTENERS.SLDASM
-10_TOP_ADAPTER.SLDPRT
-```
-
-`00_SKELETON` 当前主参考对象：
-
-```text
-PLN_BODY_JOINT_X X=232.5
-CYL_MAIN_ASSEMBLY_OPENING_REF φ480
-CYL_BODY_COVER_PILOT_REF φ480
-RING_MAIN_GASKET_REF φ490~φ500
-CIRCLE_MID_BCD_REF φ526.5 / 20等分
-SURF_MID_FLANGE_OD_REF φ562.5
-SURF_BODY_CENTRAL_OUTER_GUIDE φ504
-END_FLANGE_REF ODφ482.6 / BCDφ431.8 / RFφ381
-```
-
-BODY主中法兰：
-
-```text
-20×M20螺纹锚固孔
-```
-
-BODY_COVER主中法兰：
-
-```text
-20×φ22通孔 + 外侧螺母支承/spotface
-```
-
-孔身份严禁混淆。
-
----
-
-# 29. 下一步 V32 / 第7B
-
-```text
-关闭上STEM_COVER / 下BOTTOM_COVER的BODY绝对Z安装面
 ↓
-确定上/下Boss有效径向尺寸
+验证：φ465 / φ303 / 宽348 / φ105 / φ70 / 驱动槽
 ↓
-确定上/下紧固件BCD和法兰OD
+关键尺寸世界几何回读
 ↓
-把07_BODY从X向主壳体升级为四向接口完整实体
+ForceRebuild
 ↓
-再进入完整总装干涉/运动配置
+What's Wrong / Feature errors
+↓
+保存 / 日志 / PASS
 ```
+
+S04未实机PASS前，不宣布球体自动建模完成。
