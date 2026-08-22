@@ -38,8 +38,22 @@ namespace Q347F
             };
         }
 
+        public static SwSession StartNewIsolated()
+        {
+            Type t = Type.GetTypeFromProgID("SldWorks.Application", true);
+            object obj = Activator.CreateInstance(t);
+            return BuildSession((SldWorks)obj, "START_NEW_ISOLATED");
+        }
+
         public static SwSession ConnectOrStart()
         {
+            string forceIsolated = Environment.GetEnvironmentVariable("Q347F_FORCE_ISOLATED_SW");
+            if (String.Equals(forceIsolated, "1", StringComparison.OrdinalIgnoreCase) ||
+                String.Equals(forceIsolated, "true", StringComparison.OrdinalIgnoreCase))
+            {
+                return StartNewIsolated();
+            }
+
             object obj = null;
             string mode = "";
             try
@@ -55,17 +69,6 @@ namespace Q347F
             }
 
             return BuildSession((SldWorks)obj, mode);
-        }
-
-        // Reference-model inspection must never attach to the user's existing SOLIDWORKS
-        // process. Pack and Go contains files with the same titles as documents that may
-        // already be open in the working session. OpenDoc6 then returns
-        // swFileWithSameTitleAlreadyOpen (65536). Start an isolated process instead.
-        public static SwSession StartNewIsolated()
-        {
-            Type t = Type.GetTypeFromProgID("SldWorks.Application", true);
-            object obj = Activator.CreateInstance(t);
-            return BuildSession((SldWorks)obj, "START_NEW_ISOLATED");
         }
 
         public static void ExitIsolated(SwSession session)
@@ -104,8 +107,6 @@ namespace Q347F
             ModelDoc2 doc = null;
             try { doc = session.App.GetOpenDocumentByName(target) as ModelDoc2; } catch { }
 
-            // Some SOLIDWORKS installations are more reliable when GetOpenDocumentByName
-            // is given a title rather than a full path. Fall back to walking open documents.
             if (doc == null)
             {
                 try
