@@ -70,6 +70,51 @@ namespace Q347F
             return doc;
         }
 
+        public static bool CloseDocumentByPath(SwSession session, string fullPath)
+        {
+            if (session == null || session.App == null || String.IsNullOrWhiteSpace(fullPath)) return false;
+
+            string target;
+            try { target = Path.GetFullPath(fullPath); }
+            catch { target = fullPath; }
+
+            ModelDoc2 doc = null;
+            try { doc = session.App.GetOpenDocumentByName(target) as ModelDoc2; } catch { }
+
+            // Some SOLIDWORKS installations are more reliable when GetOpenDocumentByName
+            // is given a title rather than a full path. Fall back to walking open documents.
+            if (doc == null)
+            {
+                try
+                {
+                    ModelDoc2 cur = session.App.GetFirstDocument() as ModelDoc2;
+                    while (cur != null)
+                    {
+                        string p = "";
+                        try { p = cur.GetPathName(); } catch { }
+                        if (!String.IsNullOrWhiteSpace(p))
+                        {
+                            string normalized;
+                            try { normalized = Path.GetFullPath(p); } catch { normalized = p; }
+                            if (String.Equals(normalized, target, StringComparison.OrdinalIgnoreCase))
+                            {
+                                doc = cur;
+                                break;
+                            }
+                        }
+                        try { cur = cur.GetNext() as ModelDoc2; } catch { cur = null; }
+                    }
+                }
+                catch { }
+            }
+
+            if (doc == null) return false;
+
+            string title = doc.GetTitle();
+            session.App.CloseDoc(title);
+            return true;
+        }
+
         public static void CloseDocument(SwSession session, object modelObject)
         {
             if (session == null || session.App == null || modelObject == null) return;
