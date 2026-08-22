@@ -5,7 +5,6 @@ function Add-EmbeddedSwAssemblyInspectorApiType {
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Reflection;
 using SolidWorks.Interop.sldworks;
 using SolidWorks.Interop.swconst;
 
@@ -78,46 +77,22 @@ namespace Q347F
 
     public static class SwAssemblyInspectorApi
     {
-        private static SldWorks GetSessionApp(object sessionObject)
-        {
-            if (sessionObject == null) throw new ArgumentNullException("sessionObject");
-            FieldInfo f = sessionObject.GetType().GetField("App");
-            if (f == null) throw new InvalidOperationException("Session object has no public App field.");
-            SldWorks app = f.GetValue(sessionObject) as SldWorks;
-            if (app == null) throw new InvalidOperationException("Session App is not a SOLIDWORKS application object.");
-            return app;
-        }
-
-        private static string GetSessionRevision(object sessionObject)
-        {
-            try
-            {
-                FieldInfo f = sessionObject.GetType().GetField("Revision");
-                object v = f == null ? null : f.GetValue(sessionObject);
-                return v == null ? "" : Convert.ToString(v);
-            }
-            catch { return ""; }
-        }
-
         private static Feature FirstSubFeature(Feature feature)
         {
             if (feature == null) return null;
-            try { return feature.GetFirstSubFeature() as Feature; }
-            catch { return null; }
+            try { return feature.GetFirstSubFeature() as Feature; } catch { return null; }
         }
 
         private static Feature NextSubFeature(Feature feature)
         {
             if (feature == null) return null;
-            try { return feature.GetNextSubFeature() as Feature; }
-            catch { return null; }
+            try { return feature.GetNextSubFeature() as Feature; } catch { return null; }
         }
 
         private static Feature NextFeature(Feature feature)
         {
             if (feature == null) return null;
-            try { return feature.GetNextFeature() as Feature; }
-            catch { return null; }
+            try { return feature.GetNextFeature() as Feature; } catch { return null; }
         }
 
         private static double[] ToDoubleArray(object raw)
@@ -176,23 +151,19 @@ namespace Q347F
                     }
                 }
                 catch { }
-                try { current = f.GetNextDisplayDimension(current); }
-                catch { break; }
+                try { current = f.GetNextDisplayDimension(current); } catch { break; }
             }
         }
 
         private static void CollectComponents(AssemblyDoc assy, RefAssemblyReport report)
         {
-            object raw = assy.GetComponents(false);
-            Array components = raw as Array;
+            Array components = assy.GetComponents(false) as Array;
             if (components == null) return;
-
             int order = 0;
             foreach (object o in components)
             {
                 Component2 c = o as Component2;
                 if (c == null) continue;
-
                 RefComponentInfo ci = new RefComponentInfo();
                 ci.Order = ++order;
                 try { ci.Name = c.Name2; } catch { ci.Name = ""; }
@@ -245,8 +216,7 @@ namespace Q347F
 
             try
             {
-                object specific = mateFeature.GetSpecificFeature2();
-                Mate2 mate = specific as Mate2;
+                Mate2 mate = mateFeature.GetSpecificFeature2() as Mate2;
                 if (mate != null)
                 {
                     try { mi.Alignment = mate.Alignment; } catch { mi.Alignment = 0; }
@@ -256,8 +226,7 @@ namespace Q347F
                     {
                         try
                         {
-                            object rawEntity = mate.MateEntity(i);
-                            MateEntity2 e = rawEntity as MateEntity2;
+                            MateEntity2 e = mate.MateEntity(i) as MateEntity2;
                             if (e == null) continue;
                             RefMateEntityInfo ei = new RefMateEntityInfo();
                             ei.Index = i;
@@ -265,8 +234,7 @@ namespace Q347F
                             try { ei.EntityParams = ToDoubleArray(e.EntityParams); } catch { ei.EntityParams = new double[0]; }
                             try
                             {
-                                object rawComponent = e.ReferenceComponent;
-                                Component2 rc = rawComponent as Component2;
+                                Component2 rc = e.ReferenceComponent as Component2;
                                 if (rc != null)
                                 {
                                     try { ei.ComponentName = rc.Name2; } catch { ei.ComponentName = ""; }
@@ -281,7 +249,6 @@ namespace Q347F
                 }
             }
             catch { }
-
             report.Mates.Add(mi);
         }
 
@@ -310,25 +277,21 @@ namespace Q347F
             report.MateCount = report.Mates.Count;
         }
 
-        public static RefAssemblyReport Inspect(object sessionObject, string assemblyPath)
+        public static RefAssemblyReport Inspect(object appObject, string revision, string assemblyPath)
         {
-            SldWorks app = GetSessionApp(sessionObject);
-            string revision = GetSessionRevision(sessionObject);
+            SldWorks app = appObject as SldWorks;
+            if (app == null) throw new ArgumentException("appObject is not a SOLIDWORKS SldWorks application.");
             if (String.IsNullOrWhiteSpace(assemblyPath) || !File.Exists(assemblyPath))
                 throw new FileNotFoundException("Reference SLDASM not found", assemblyPath);
+
+            string fullPath = Path.GetFullPath(assemblyPath);
+            string workingDir = Path.GetDirectoryName(fullPath);
+            if (!String.IsNullOrWhiteSpace(workingDir)) { try { app.SetCurrentWorkingDirectory(workingDir); } catch { } }
 
             int errors = 0;
             int warnings = 0;
             ModelDoc2 model = null;
             bool openedHere = false;
-
-            string fullPath = Path.GetFullPath(assemblyPath);
-            string workingDir = Path.GetDirectoryName(fullPath);
-            if (!String.IsNullOrWhiteSpace(workingDir))
-            {
-                try { app.SetCurrentWorkingDirectory(workingDir); } catch { }
-            }
-
             try { model = app.GetOpenDocumentByName(fullPath) as ModelDoc2; } catch { }
             if (model == null)
             {
@@ -337,14 +300,7 @@ namespace Q347F
                     (int)swOpenDocOptions_e.swOpenDocOptions_ReadOnly |
                     (int)swOpenDocOptions_e.swOpenDocOptions_OverrideDefaultLoadLightweight |
                     (int)swOpenDocOptions_e.swOpenDocOptions_LoadLightweight;
-
-                object opened = app.OpenDoc6(
-                    fullPath,
-                    (int)swDocumentTypes_e.swDocASSEMBLY,
-                    openOptions,
-                    "",
-                    ref errors,
-                    ref warnings);
+                object opened = app.OpenDoc6(fullPath, (int)swDocumentTypes_e.swDocASSEMBLY, openOptions, "", ref errors, ref warnings);
                 model = opened as ModelDoc2;
                 openedHere = true;
             }
@@ -355,26 +311,21 @@ namespace Q347F
             {
                 AssemblyDoc assy = model as AssemblyDoc;
                 if (assy == null) throw new InvalidOperationException("Opened document is not an AssemblyDoc.");
-
                 RefAssemblyReport report = new RefAssemblyReport();
                 report.Path = fullPath;
                 report.Title = model.GetTitle();
-                report.Revision = revision;
+                report.Revision = revision ?? "";
                 report.OpenErrors = errors;
                 report.OpenWarnings = warnings;
                 try { report.ActiveConfiguration = model.ConfigurationManager.ActiveConfiguration.Name; } catch { report.ActiveConfiguration = ""; }
                 try { report.LightweightComponentCount = assy.GetLightWeightComponentCount(); } catch { report.LightweightComponentCount = -1; }
-
                 CollectComponents(assy, report);
                 CollectMates(model, report.Path, report);
                 return report;
             }
             finally
             {
-                if (openedHere)
-                {
-                    try { app.CloseDoc(model.GetTitle()); } catch { }
-                }
+                if (openedHere) { try { app.CloseDoc(model.GetTitle()); } catch { } }
             }
         }
     }
