@@ -12,6 +12,12 @@ namespace Q347F
 {
     public static class SwGeometryApi
     {
+        private static ModelDoc2 AsModel(object modelObject)
+        {
+            if (modelObject == null) throw new ArgumentNullException("modelObject");
+            return (ModelDoc2)modelObject;
+        }
+
         private static List<Feature> GetNativeDefaultPlanes(ModelDoc2 model)
         {
             List<Feature> planes = new List<Feature>();
@@ -71,11 +77,9 @@ namespace Q347F
             return feat;
         }
 
-        public static string[] CreateProjectBasePlanes(ModelDoc2 model)
+        public static string[] CreateProjectBasePlanes(object modelObject)
         {
-            // Project ledger mapping (do not localize by UI plane names):
-            // native Front = XZ, native Top = XY, native Right = YZ.
-            // X = FLOW_AXIS, Z = SUPPORT_AXIS.
+            ModelDoc2 model = AsModel(modelObject);
             List<Feature> p = GetNativeDefaultPlanes(model);
             Feature xz = CreateCoincidentPlane(model, p[0], "PLN_BASE_XZ_FLOW_SUPPORT");
             Feature xy = CreateCoincidentPlane(model, p[1], "PLN_BASE_XY_FLOW_CROSS");
@@ -83,8 +87,9 @@ namespace Q347F
             return new string[] { xy.Name, xz.Name, yz.Name };
         }
 
-        public static string[] CreateProjectAxes(ModelDoc2 model)
+        public static string[] CreateProjectAxes(object modelObject)
         {
+            ModelDoc2 model = AsModel(modelObject);
             Feature xy = FindFeatureByName(model, "PLN_BASE_XY_FLOW_CROSS");
             Feature xz = FindFeatureByName(model, "PLN_BASE_XZ_FLOW_SUPPORT");
             Feature yz = FindFeatureByName(model, "PLN_BASE_YZ_CROSS_SUPPORT");
@@ -107,8 +112,9 @@ namespace Q347F
             return new string[] { xAxis.Name, zAxis.Name };
         }
 
-        public static Feature CreateStationPlane(ModelDoc2 model, string axis, double offsetMm, string name)
+        public static object CreateStationPlane(object modelObject, string axis, double offsetMm, string name)
         {
+            ModelDoc2 model = AsModel(modelObject);
             Feature basePlane;
             if (String.Equals(axis, "X", StringComparison.OrdinalIgnoreCase))
                 basePlane = FindFeatureByName(model, "PLN_BASE_YZ_CROSS_SUPPORT");
@@ -143,8 +149,9 @@ namespace Q347F
             return feat;
         }
 
-        public static double ReadPlaneCoordinateMm(ModelDoc2 model, string featureName, string axis)
+        public static double ReadPlaneCoordinateMm(object modelObject, string featureName, string axis)
         {
+            ModelDoc2 model = AsModel(modelObject);
             Feature feat = FindFeatureByName(model, featureName);
             if (feat == null) throw new InvalidOperationException("Plane not found: " + featureName);
             RefPlane plane = feat.GetSpecificFeature2() as RefPlane;
@@ -176,8 +183,9 @@ namespace Q347F
             return last;
         }
 
-        public static string CreateBallCenterPoint(ModelDoc2 model)
+        public static string CreateBallCenterPoint(object modelObject)
         {
+            ModelDoc2 model = AsModel(modelObject);
             model.ClearSelection2(true);
             model.SketchManager.Insert3DSketch(true);
             SketchPoint pt = model.SketchManager.CreatePoint(0.0, 0.0, 0.0);
@@ -190,8 +198,9 @@ namespace Q347F
             return sketch.Name;
         }
 
-        public static string CreateEnvelopeSketch(ModelDoc2 model, string planeName, string sketchName, double[] diametersMm)
+        public static string CreateEnvelopeSketch(object modelObject, string planeName, string sketchName, double[] diametersMm)
         {
+            ModelDoc2 model = AsModel(modelObject);
             Feature plane = FindFeatureByName(model, planeName);
             if (plane == null) throw new InvalidOperationException("Envelope sketch plane missing: " + planeName);
             model.ClearSelection2(true);
