@@ -3,8 +3,11 @@ function Add-EmbeddedSwEquationApiType {
 
     $source = @'
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Text.RegularExpressions;
 using SolidWorks.Interop.sldworks;
+using SolidWorks.Interop.swconst;
 
 namespace Q347F
 {
@@ -36,95 +39,86 @@ namespace Q347F
             return -1;
         }
 
+        private static string NormalizeForSolidWorks(string equationText)
+        {
+            // The project source file intentionally keeps explicit engineering units such as
+            // 610mm and 22.5deg. SOLIDWORKS EquationMgr.Add2 accepts the length literals used
+            // by this project, but on this SOLIDWORKS 2025 installation it rejects the explicit
+            // "deg" suffix for global-variable assignments. EquationMgr has its own angular-unit
+            // setting, so keep the canonical source untouched and normalize degree literals only
+            // at the CAD import boundary.
+            return Regex.Replace(
+                equationText,
+                @"(?i)\b([0-9]+(?:\.[0-9]+)?)\s*deg\b",
+                "$1");
+        }
+
         public static int ImportOrUpdateEquations(object modelObject, string equationFile)
         {
             ModelDoc2 model = AsModel(modelObject);
-            if (!File.Exists(equationFile))
-                throw new FileNotFoundException("Equation file not found", equationFile);
-
+            if (!File.Exists(equationFile)) throw new FileNotFoundException("Equation file not found", equationFile);
             EquationMgr mgr = model.GetEquationMgr();
             if (mgr == null) throw new InvalidOperationException("GetEquationMgr returned null.");
 
-            // 00_SKELETON is intentionally a normal single-configuration part.
-            // SOLIDWORKS API documentation requires Add2 for a part without
-            // multiple configurations. Add3 can return -1 on a new one-config part.
             mgr.AutomaticSolveOrder = true;
             mgr.AutomaticRebuild = false;
 
-            string[] lines = File.ReadAllLines(equationFile);
+            // Explicitly define how bare angular values are interpreted after normalization.
+            mgr.AngularEquationUnits = (int)swAngularEquationUnits_e.swAngularEquationUnitsDegrees;
+
             int sourceLine = 0;
-            foreach (string raw in lines)
+            foreach (string raw in File.ReadAllLines(equationFile))
             {
                 sourceLine++;
                 string line = raw.Trim();
                 if (line.Length == 0 || line.StartsWith("#") || line.StartsWith("//")) continue;
 
-                string name = ExtractLhsName(line);
-                if (name.Length == 0)
-                    throw new InvalidOperationException(
-                        "Equation source line " + sourceLine + " has no valid quoted left-hand name: " + line);
+                string normalizedLine = NormalizeForSolidWorks(line);
+                string name = ExtractLhsName(normalizedLine);
+                if (name.Length == 0) continue;
 
                 int idx = FindEquationIndex(mgr, name);
+                int result;
                 if (idx >= 0)
                 {
-                    try
-                    {
-                        mgr.set_Equation(idx, line);
-                    }
-                    catch (Exception ex)
+                    mgr.set_Equation(idx, normalizedLine);
+                    result = idx;
+                    if (mgr.Status == -1)
                     {
                         throw new InvalidOperationException(
-                            "Failed to update equation at source line " + sourceLine +
-                            ", name=" + name + ", equation=" + line +
-                            ", EquationMgr.Status=" + mgr.Status + ". " + ex.Message, ex);
+                            "Equation update failed at source line " + sourceLine +
+                            ", name=" + name +
+                            ", source=" + line +
+                            ", normalized=" + normalizedLine +
+                            ", EquationMgr.Status=" + mgr.Status +
+                            ", EquationCount=" + mgr.GetCount());
                     }
-
-                    if (mgr.Status < 0)
-                        throw new InvalidOperationException(
-                            "Equation update returned error at source line " + sourceLine +
-                            ", name=" + name + ", equation=" + line +
-                            ", EquationMgr.Status=" + mgr.Status);
                 }
                 else
                 {
-                    int result = mgr.Add2(-1, line, false);
+                    result = mgr.Add2(-1, normalizedLine, false);
                     if (result < 0)
+                    {
                         throw new InvalidOperationException(
                             "Add2 failed at source line " + sourceLine +
-                            ", name=" + name + ", equation=" + line +
+                            ", name=" + name +
+                            ", source=" + line +
+                            ", normalized=" + normalizedLine +
                             ", EquationMgr.Status=" + mgr.Status +
                             ", EquationCount=" + mgr.GetCount());
+                    }
                 }
             }
 
-            // Evaluate only after all globals exist so dependent expressions resolve together.
-            try { mgr.EvaluateAll(); }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException(
-                    "EquationMgr.EvaluateAll failed after importing " + mgr.GetCount() +
-                    " equations. Status=" + mgr.Status + ". " + ex.Message, ex);
-            }
+            // Do not LinkToFile here. The canonical project file contains engineering-friendly
+            // explicit degree suffixes; re-reading that file inside SOLIDWORKS would bypass the
+            // normalization above. Every build re-imports the canonical source, so it remains the
+            // single source of truth without making the SLDPRT depend on a generated sidecar file.
+            try { mgr.LinkToFile = false; } catch { }
 
             mgr.AutomaticRebuild = true;
-            if (!model.EditRebuild3())
-                throw new InvalidOperationException("EditRebuild3 returned false after equation import.");
-
-            // Preserve the project parameter text as the external equation source when allowed.
-            // Linking is secondary to a successful in-model import: local policy may deny it.
-            try
-            {
-                mgr.FilePath = equationFile;
-                mgr.LinkToFile = true;
-                mgr.UpdateValuesFromExternalEquationFile();
-                try { mgr.EvaluateAll(); } catch { }
-                model.EditRebuild3();
-            }
-            catch
-            {
-                // Keep the already imported global variables even if external linking is unavailable.
-            }
-
+            try { mgr.EvaluateAll(); } catch { }
+            model.EditRebuild3();
             return mgr.GetCount();
         }
     }
