@@ -9,7 +9,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$ScriptVersion = '0.1.1-S00-S03-config'
+$ScriptVersion = '0.2.0-S00-S04-ball'
 $BuildName = 'Q347F 12in Class150 AUTO BUILD'
 $RequiredSwMajorRevision = 33   # SOLIDWORKS 2025
 $RunId = Get-Date -Format 'yyyyMMdd_HHmmss'
@@ -37,6 +37,8 @@ $SummaryPath = Join-Path $RunLogDir 'summary.json'
 $ParameterSnapshotPath = Join-Path $RunLogDir 'parameters_snapshot.txt'
 $SkeletonFinalPath = Join-Path $OutputRoot '00_SKELETON.SLDPRT'
 $SkeletonStagingPath = Join-Path $RunBackupDir '00_SKELETON_staging.SLDPRT'
+$BallFinalPath = Join-Path $OutputRoot '01_BALL.SLDPRT'
+$BallStagingPath = Join-Path $RunBackupDir '01_BALL_staging.SLDPRT'
 
 $StepNames = [ordered]@{
     S00 = 'ENVIRONMENT'
@@ -99,8 +101,10 @@ New-Item -ItemType Directory -Force -Path $OutputRoot, $BackupRoot, $LogsRoot, $
 . (Join-Path $ScriptDir 'lib\Q347F_SwEquationApi.ps1')
 . (Join-Path $ScriptDir 'lib\Q347F_SwGeometryApi.ps1')
 . (Join-Path $ScriptDir 'lib\Q347F_SwValidationApi.ps1')
+. (Join-Path $ScriptDir 'lib\Q347F_SwBallApi.ps1')
 . (Join-Path $ScriptDir 'lib\Q347F_Stages_S00_S02.ps1')
 . (Join-Path $ScriptDir 'lib\Q347F_Stage_S03.ps1')
+. (Join-Path $ScriptDir 'lib\Q347F_Stage_S04.ps1')
 
 function Write-FinalSummary {
     param([string]$OverallStatus, [string]$Message)
@@ -123,13 +127,15 @@ function Write-FinalSummary {
         }
         output = [ordered]@{
             skeleton = $SkeletonFinalPath
+            ball = $BallFinalPath
             runLogDir = $RunLogDir
-            staging = $SkeletonStagingPath
+            skeletonStaging = $SkeletonStagingPath
+            ballStaging = $BallStagingPath
         }
         steps = $script:StepStatus
         warnings = @($script:RunWarnings)
         errors = @($script:RunErrors)
-        currentMilestone = 'S00-S03 only; S04-S12 intentionally not implemented in this version.'
+        currentMilestone = 'S00-S04 implemented. S04 generates editable 01_BALL.SLDPRT using TEMP-FROZEN manufacturing dimensions.'
     }
     $summary | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $SummaryPath -Encoding UTF8
 
@@ -142,8 +148,10 @@ function Write-FinalSummary {
     Write-Host ("S01    : {0}" -f $script:StepStatus['S01'])
     Write-Host ("S02    : {0}" -f $script:StepStatus['S02'])
     Write-Host ("S03    : {0}" -f $script:StepStatus['S03'])
-    Write-Host 'S04-S12: WAITING (not implemented yet)'
+    Write-Host ("S04    : {0}" -f $script:StepStatus['S04'])
+    Write-Host 'S05-S12: WAITING (not implemented yet)'
     Write-Host ("Skeleton: {0}" -f $SkeletonFinalPath)
+    Write-Host ("Ball    : {0}" -f $BallFinalPath)
     Write-Host ("Logs    : {0}" -f $RunLogDir)
     Write-Host '============================================================' -ForegroundColor DarkGray
 }
@@ -165,14 +173,29 @@ try {
     $script:StepStatus['S02'] = 'WAITING'
     Invoke-S02
 
-    if ($Resume -and $script:StepStatus['S03'] -eq 'PASS' -and (Test-Path -LiteralPath $SkeletonFinalPath)) {
+    # S04 has its own embedded C# geometry layer. Compile only after S00 loaded the SOLIDWORKS interop assemblies.
+    Add-EmbeddedSwBallApiType
+    Write-RunLog 'S02' 'CSHARP_S04' 15 'PASS' 'S04 BALL embedded C# API compiled and ready.'
+
+    $resumeHashMatches = $false
+    if ($Resume -and $script:PreviousState -and $script:PreviousState.parameterHash) {
+        $resumeHashMatches = ([string]$script:PreviousState.parameterHash -eq [string]$script:ParameterHash)
+    }
+
+    if ($Resume -and $resumeHashMatches -and $script:StepStatus['S03'] -eq 'PASS' -and (Test-Path -LiteralPath $SkeletonFinalPath)) {
         Write-RunLog 'S03' 'RESUME' 25 'SKIP' 'Previous S03 is PASS, parameter hash is unchanged, and 00_SKELETON.SLDPRT exists. S03 skipped.'
     } else {
         Invoke-S03
     }
 
+    if ($Resume -and $resumeHashMatches -and $script:StepStatus['S04'] -eq 'PASS' -and (Test-Path -LiteralPath $BallFinalPath)) {
+        Write-RunLog 'S04' 'RESUME' 34 'SKIP' 'Previous S04 is PASS, parameter hash is unchanged, and 01_BALL.SLDPRT exists. S04 skipped.'
+    } else {
+        Invoke-S04
+    }
+
     Write-Progress -Activity $BuildName -Completed
-    Write-FinalSummary 'PASS' 'S00-S03 completed. Skeleton milestone is stable enough for local verification.'
+    Write-FinalSummary 'PASS' 'S00-S04 completed. Skeleton and complete editable BALL milestone generated.'
     $exitCode = 0
 }
 catch {
