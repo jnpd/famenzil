@@ -120,6 +120,43 @@ namespace Q347F
             return FinishSketch(model, sketchName);
         }
 
+        private static Feature CreateRectangleSketch(ModelDoc2 model, Feature plane, string sketchName, double lengthXmm, double widthYmm)
+        {
+            if (lengthXmm <= 0.0 || widthYmm <= 0.0) throw new ArgumentException("Rectangle dimensions must be positive.");
+            double hx = M(lengthXmm / 2.0);
+            double hy = M(widthYmm / 2.0);
+
+            model.ClearSelection2(true);
+            if (!plane.Select2(false, 0)) throw new InvalidOperationException("Cannot select plane for " + sketchName);
+            model.SketchManager.InsertSketch(true);
+            object rect = model.SketchManager.CreateCornerRectangle(-hx, hy, 0.0, hx, -hy, 0.0);
+            if (rect == null) throw new InvalidOperationException("CreateCornerRectangle failed for " + sketchName);
+            return FinishSketch(model, sketchName);
+        }
+
+        private static Feature CreateFourCornerCirclesSketch(ModelDoc2 model, Feature plane, string sketchName, double centerXmm, double centerYmm, double radiusMm)
+        {
+            if (centerXmm < 0.0 || centerYmm < 0.0 || radiusMm <= 0.0)
+                throw new ArgumentException("Invalid corner-circle geometry.");
+
+            double cx = M(centerXmm);
+            double cy = M(centerYmm);
+            double r = M(radiusMm);
+
+            model.ClearSelection2(true);
+            if (!plane.Select2(false, 0)) throw new InvalidOperationException("Cannot select plane for " + sketchName);
+            model.SketchManager.InsertSketch(true);
+
+            SketchSegment c1 = model.SketchManager.CreateCircleByRadius( cx,  cy, 0.0, r);
+            SketchSegment c2 = model.SketchManager.CreateCircleByRadius(-cx,  cy, 0.0, r);
+            SketchSegment c3 = model.SketchManager.CreateCircleByRadius(-cx, -cy, 0.0, r);
+            SketchSegment c4 = model.SketchManager.CreateCircleByRadius( cx, -cy, 0.0, r);
+            if (c1 == null || c2 == null || c3 == null || c4 == null)
+                throw new InvalidOperationException("Failed to create four corner circles for " + sketchName);
+
+            return FinishSketch(model, sketchName);
+        }
+
         private static Feature CutSelectedSketch(ModelDoc2 model, Feature sketch, string featureName, bool throughAllBoth, double depthMm, bool reverseDir)
         {
             model.ClearSelection2(true);
@@ -189,30 +226,33 @@ namespace Q347F
             if (lengthXmm <= 2.0 * cornerRmm || widthYmm <= 2.0 * cornerRmm)
                 throw new ArgumentException("Rounded rectangle is too small for the requested corner radius.");
 
-            double hx = M(lengthXmm / 2.0);
-            double hy = M(widthYmm / 2.0);
-            double rr = M(cornerRmm);
-            double ix = hx - rr;
-            double iy = hy - rr;
+            // Robust construction for a rounded rectangle. Instead of relying on an eight-segment
+            // line/arc loop (which can be rejected by FeatureCut4 when tiny endpoint topology gaps
+            // appear through COM), build the exact same 2D region as a boolean union of:
+            //   1) full-length x inner-height rectangle,
+            //   2) inner-length x full-height rectangle,
+            //   3) four R corner circles.
+            // The union is geometrically identical to lengthX x widthY with corner radius R.
+            double innerLength = lengthXmm - 2.0 * cornerRmm;
+            double innerWidth = widthYmm - 2.0 * cornerRmm;
+            double cornerCenterX = lengthXmm / 2.0 - cornerRmm;
+            double cornerCenterY = widthYmm / 2.0 - cornerRmm;
 
-            model.ClearSelection2(true);
-            if (!plane.Select2(false, 0)) throw new InvalidOperationException("Cannot select drive-slot plane.");
-            model.SketchManager.InsertSketch(true);
-            model.ClearSelection2(true);
+            Feature sx = CreateRectangleSketch(model, plane, "SK_UPPER_DRIVE_SLOT_CORE_X", lengthXmm, innerWidth);
+            CutSelectedSketch(model, sx, "CUT_UPPER_DRIVE_SLOT_CORE_X", false, depthMm, reverseDir);
 
-            SketchSegment s1 = model.SketchManager.CreateLine(-ix, hy, 0, ix, hy, 0);
-            SketchSegment a1 = model.SketchManager.CreateArc(ix, iy, 0, ix, hy, 0, hx, iy, 0, -1);
-            SketchSegment s2 = model.SketchManager.CreateLine(hx, iy, 0, hx, -iy, 0);
-            SketchSegment a2 = model.SketchManager.CreateArc(ix, -iy, 0, hx, -iy, 0, ix, -hy, 0, -1);
-            SketchSegment s3 = model.SketchManager.CreateLine(ix, -hy, 0, -ix, -hy, 0);
-            SketchSegment a3 = model.SketchManager.CreateArc(-ix, -iy, 0, -ix, -hy, 0, -hx, -iy, 0, -1);
-            SketchSegment s4 = model.SketchManager.CreateLine(-hx, -iy, 0, -hx, iy, 0);
-            SketchSegment a4 = model.SketchManager.CreateArc(-ix, iy, 0, -hx, iy, 0, -ix, hy, 0, -1);
-            if (s1 == null || a1 == null || s2 == null || a2 == null || s3 == null || a3 == null || s4 == null || a4 == null)
-                throw new InvalidOperationException("Failed to create rounded drive-slot sketch.");
+            Feature sy = CreateRectangleSketch(model, plane, "SK_UPPER_DRIVE_SLOT_CORE_Y", innerLength, widthYmm);
+            CutSelectedSketch(model, sy, "CUT_UPPER_DRIVE_SLOT_CORE_Y", false, depthMm, reverseDir);
 
-            Feature sketch = FinishSketch(model, "SK_UPPER_DRIVE_SLOT_70x50_R8");
-            return CutSelectedSketch(model, sketch, "CUT_UPPER_DRIVE_SLOT_70x50_R8", false, depthMm, reverseDir).Name;
+            Feature sc = CreateFourCornerCirclesSketch(
+                model,
+                plane,
+                "SK_UPPER_DRIVE_SLOT_70x50_R8",
+                cornerCenterX,
+                cornerCenterY,
+                cornerRmm);
+            Feature finalCut = CutSelectedSketch(model, sc, "CUT_UPPER_DRIVE_SLOT_70x50_R8", false, depthMm, reverseDir);
+            return finalCut.Name;
         }
 
         public static BallAudit Audit(object modelObject)
