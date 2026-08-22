@@ -28,7 +28,7 @@ echo [INFO] SOLIDWORKS may open/close many files while extracting the model ledg
 echo [INFO] Do not close SOLIDWORKS until the script reports COMPLETE.
 echo.
 
-powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0\01_scripts\Inspect_Reference_Assembly.ps1" -SourcePath "%SOURCE_PATH%"
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0\01_scripts\Inspect_Reference_Assembly_Entry.ps1" -SourcePath "%SOURCE_PATH%"
 set "RC=%ERRORLEVEL%"
 
 echo.
