@@ -131,7 +131,7 @@ function Resolve-Q347FParameters {
         $t = $line.Trim()
         if ([string]::IsNullOrWhiteSpace($t) -or $t.StartsWith('#') -or $t.StartsWith('//')) { continue }
         if ($t -notmatch '^"([^"]+)"\s*=\s*(.+)$') {
-            throw "Unsupported parameter syntax at line $lineNo: $t"
+            throw "Unsupported parameter syntax at line ${lineNo}: $t"
         }
         $pending.Add([pscustomobject]@{ Name = $Matches[1]; Expr = $Matches[2].Trim(); Line = $lineNo; Raw = $t })
         $raw[$Matches[1]] = $t
@@ -205,4 +205,3 @@ function Convert-StationName([string]$Axis, [double]$Value) {
     $s = $abs.ToString('000.000', [Globalization.CultureInfo]::InvariantCulture).Replace('.', '_')
     return "PLN_${Axis}_${prefix}${s}"
 }
-
