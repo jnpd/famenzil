@@ -1,115 +1,70 @@
-# Q347F 12寸 Class150——第7M步：SolidWorks Skeleton手工稳定建模顺序 / 宏自动化边界 V43
+# Q347F 12寸 Class150——第7M步：SolidWorks Skeleton稳定建模 / 自动化边界 V43（实机统一版）
 
-> **定位**：V42已经产出SolidWorks可读的全局变量txt。V43回答“小白实际打开SolidWorks后先点什么、建什么、怎么命名”，并规定第一版VBA宏只做到Skeleton，不去批量修改/生成全部零件。
->
-> **核心原则**：先把 `00_SKELETON.SLDPRT` 建成稳定、可重建、可测量的唯一几何母版，再派生BODY/BALL/COVER。当前不允许宏直接操作44个零件，也不允许直接依赖20寸零件特征名。
+> **定位**：V43定义 `00_SKELETON.SLDPRT` 应该怎样建立、怎样命名、怎样验证。  
+> **当前状态**：这已经不是“准备写宏”的计划页。S00～S03 已在 SOLIDWORKS 2025 实机跑通，Skeleton 已生成。  
+> **正式技术路线**：`BAT → PowerShell → 内嵌C# → SolidWorks COM API`；VBA只保留用于诊断和API小实验。  
+> **最重要纠错**：禁止再把 SolidWorks 原生 `Front/Top/Right` 名称硬绑定为项目 `XZ/XY/YZ`。必须按真实世界几何识别。
 
 [← 总导航](./00_Q347F_12in_Class150_文档导航_从这里开始.md)  
-[← V42 SolidWorks全局变量交付](./Q347F_12in_Class150_第7L步_SolidWorks全局变量交付版_当前CAD_D门与HR隔离_V42.md)  
-[← GlobalVariables V1](./Q347F_12in_Class150_00_SKELETON_GlobalVariables_V1.txt)
+[← V42 SolidWorks参数交付](./Q347F_12in_Class150_第7L步_SolidWorks全局变量交付版_当前CAD_D门与HR隔离_V42.md)  
+[← 当前数字总账](./Q347F_12in_Class150_数字化总装骨架_尺寸参数_装配关系_空间坐标总账.md)  
+[→ 自动建模永久主流程](./Q347F_12in_Class150_SolidWorks一键自动建模_永久唯一主流程.md)
 
 ---
 
-# 1. 第一件事：新建独立Skeleton零件
+# 1. Skeleton的永久职责
 
-不要在20寸总装里改。
+`00_SKELETON.SLDPRT` 是共享3D定位骨架，不是最终制造零件。
 
-新建：
+它负责：
 
 ```text
-Part
+球心O
+项目X/Y/Z方向
+关键X/Z站位
+全局参数入口
+BALL / BORE / BODY / F25包络
+后续零件的公共定位语义
 ```
 
-单位：
+它不负责：
 
 ```text
-MMGS
-mm / g / s
-```
-
-立即另存：
-
-```text
-00_SKELETON.SLDPRT
-```
-
-建议项目目录：
-
-```text
-12_Q347F_150LB/
-├─ 00_SKELETON.SLDPRT
-├─ 01_BALL.SLDPRT
-├─ 02_LEFT_SEAT.SLDASM
-├─ 03_RIGHT_SEAT.SLDASM
-├─ 04_STEM_COVER.SLDPRT
-├─ 05_STEM.SLDPRT
-├─ 06_BOTTOM_COVER.SLDPRT
-├─ 07_BODY.SLDPRT
-├─ 08_BODY_COVER.SLDPRT
-├─ 10_TOP_ADAPTER.SLDPRT
-└─ 11_F25_GEARBOX_PLACEHOLDER.SLDPRT
+真实螺纹牙型
+O形圈实体
+弹簧螺旋线
+铸造圆角最终制造形状
+最终公差
+最终材料冻结
 ```
 
 ---
 
-# 2. 第二件事：链接GlobalVariables
-
-打开：
+# 2. 当前唯一项目坐标定义
 
 ```text
-Tools
-→ Equations
+O = BALL_CENTER_O = (0,0,0)
+X = FLOW_AXIS
+Y = CROSS_AXIS
+Z = SUPPORT_AXIS / STEM_AXIS
 ```
 
-选择：
+方向：
 
 ```text
-Link to external file
+-X = 入口
++X = 出口
++Z = 阀杆/驱动
+-Z = 底盖
 ```
 
-链接：
-
-```text
-Q347F_12in_Class150_00_SKELETON_GlobalVariables_V1.txt
-```
-
-点击：
-
-```text
-Rebuild
-```
-
-先不要画任何复杂实体。
+这些是**项目语义**，与 SolidWorks 原生平面的显示名称无关。
 
 ---
 
-# 3. 链接后先检查7个计算结果
+# 3. 原生基准面映射——本轮最关键纠错
 
-在Equation Manager确认：
-
-```text
-HALF_F2F=305
-X_END_FACE_R=305
-X_END_FLANGE_BACK_R_CAD≈273.2
-Z_ADAPTER_TOP_CAD=337.3
-Z_KEY_START_CAD≈339.8
-Z_KEY_END_CAD≈429.8
-ASM_Z_TOTAL_CAD≈719.1
-```
-
-任何一个不对：
-
-```text
-STOP
-```
-
-先修txt或单位，不继续建Skeleton。
-
----
-
-# 4. 默认基准面永久映射
-
-本项目统一：
+旧V43曾写：
 
 ```text
 Front Plane = XZ
@@ -117,511 +72,503 @@ Top Plane   = XY
 Right Plane = YZ
 ```
 
-所以：
+并称“永久不改”。
+
+这条规则已经被 S03 实机证明不可靠，现统一：
 
 ```text
-X方向偏置面
-→ 平行Right Plane
-
-Z方向偏置面
-→ 平行Top Plane
+旧硬绑定 = H/R
 ```
 
-这条关系永久不改。
+当前正确实现：
+
+```text
+获取SolidWorks原生RefPlane
+↓
+读取真实世界几何 / CornerPoints / 法向关系
+↓
+识别其实际XY / XZ / YZ
+↓
+建立项目自己的语义基准面
+```
+
+统一项目面：
+
+```text
+PLN_BASE_XY_FLOW_CROSS
+PLN_BASE_XZ_FLOW_SUPPORT
+PLN_BASE_YZ_CROSS_SUPPORT
+```
+
+以后脚本、零件、装配文档都引用项目语义名，不引用“Front/Top/Right一定代表什么”。
 
 ---
 
-# 5. 建两个永久轴
+# 4. 永久轴和球心
 
-## Axis_X / FLOW_AXIS
-
-用：
+当前 S03 已建立并验证：
 
 ```text
-Front Plane
-+
-Top Plane
+SK_PT_BALL_CENTER_O
+AXIS_X_FLOW
+AXIS_Z_SUPPORT
 ```
 
-两平面交线建立：
+意义：
 
 ```text
-Axis_X_FLOW
-```
+AXIS_X_FLOW
+→ BALL流道 / SEAT / END FLANGE / BODY主流道
 
-## Axis_Z / SUPPORT_AXIS
-
-用：
-
-```text
-Front Plane
-+
-Right Plane
-```
-
-建立：
-
-```text
-Axis_Z_SUPPORT
-```
-
-以后球体、阀座、端法兰全部引用X轴；阀杆、前盖、底盖全部引用Z轴。
-
----
-
-# 6. X向基准面——按这个顺序建
-
-全部平行：
-
-```text
-Right Plane / YZ
-```
-
-建议名称：
-
-```text
-PLN_X_END_L             = -305
-PLN_X_FLANGE_BACK_L     ≈ -273.2
-PLN_X_BODY_JOINT_REF_L  = -232.5 仅结构参考，不代表第二主中法兰
-PLN_X_BALL_FACE_L       = -174
-PLN_X_CONTACT_L         = -166.036
-
-Right Plane / BALL_CENTER = 0
-
-PLN_X_CONTACT_R         = +166.036
-PLN_X_BALL_FACE_R       = +174
-PLN_X_BODY_JOINT        = +232.5
-PLN_X_FLANGE_BACK_R     ≈ +273.2
-PLN_X_END_R             = +305
-```
-
-重要：
-
-```text
-PLN_X_BODY_JOINT_REF_L=-232.5
-```
-
-只能用于左右内部几何空间参考，不允许把它理解成“左边第二个BODY_COVER接口”。
-
-真正主BODY分界只有：
-
-```text
-PLN_X_BODY_JOINT=+232.5
+AXIS_Z_SUPPORT
+→ BALL上下支承 / STEM / STEM_COVER / BOTTOM_COVER / ADAPTER
 ```
 
 ---
 
-# 7. Z向基准面——按当前有效口径建
+# 5. X向站位——当前实机名称规则
 
-全部平行：
+S03当前要求11个X站位：
 
 ```text
-Top Plane / XY
+-305.000
+-273.200
+-232.500
+-174.000
+-166.036
+0
++166.036
++174.000
++232.500
++273.200
++305.000
 ```
 
-下部：
+自动命名示例：
 
 ```text
-PLN_Z_BOTTOM_COVER_OUT_REF = -289.1
-PLN_Z_BODY_BOTTOM_IF       = -270.5
-PLN_Z_BOTTOM_SHOULDER      = -230.0
-PLN_Z_LOW_BRG_OUT          = -227.0
-PLN_Z_LOW_BRG_IN           = -177.0
+PLN_X_M305_000
+PLN_X_M273_200
+PLN_X_M232_500
+PLN_X_M174_000
+PLN_X_M166_036
+PLN_X_000_000
+PLN_X_P166_036
+PLN_X_P174_000
+PLN_X_P232_500
+PLN_X_P273_200
+PLN_X_P305_000
 ```
 
-中心：
+身份：
 
 ```text
-Top Plane = Z=0
-```
-
-上部：
-
-```text
-PLN_Z_UP_BRG_IN            = +193.6
-PLN_Z_UP_BRG_OUT           = +223.6
-PLN_Z_TOP_SHOULDER         = +226.9
-PLN_Z_BODY_TOP_IF          = +264.5
-PLN_Z_TOP_COVER_OUT_REF    = +300.0
-PLN_Z_PACK_PRESS           = +313.3
-PLN_Z_F25                  = +337.3
-PLN_Z_KEY_START            = +339.8
-PLN_Z_KEY_END              = +429.8
-PLN_Z_STEM_TOP_REF         = +430.0
+-305 / +305      = RF端面
+-273.2 / +273.2  = 端法兰背面CAD
+-232.5           = 左内部参考站，不是第二个主BODY joint
+-174 / +174      = BALL左右平端
+-166.036/+166.036= 真实SEAT/BALL密封接触站
+0                = BALL CENTER
++232.5           = 唯一主BODY/BODY_COVER分界
 ```
 
 ---
 
-# 8. 不要再建V32错误安装面
+# 6. Z向站位——当前实机名称规则
 
-禁止创建：
+S03要求16个Z站位：
+
+```text
+-289.1
+-270.5
+-230
+-227
+-177
+0
++193.6
++223.6
++226.9
++264.5
++300
++313.3
++337.3
++339.8
++429.8
++430
+```
+
+自动命名示例：
+
+```text
+PLN_Z_M289_100
+PLN_Z_M270_500
+PLN_Z_M230_000
+PLN_Z_M227_000
+PLN_Z_M177_000
+PLN_Z_000_000
+PLN_Z_P193_600
+PLN_Z_P223_600
+PLN_Z_P226_900
+PLN_Z_P264_500
+PLN_Z_P300_000
+PLN_Z_P313_300
+PLN_Z_P337_300
+PLN_Z_P339_800
+PLN_Z_P429_800
+PLN_Z_P430_000
+```
+
+关键身份：
+
+```text
+-270.5 = BODY—BOTTOM_COVER安装面CAD
+-230   = 下支承轴→φ70定位Boss肩面
+-227   = 下主轴承外端
+-177   = 下主轴承内端
+
++193.6 = 上主轴承内端
++223.6 = 上主轴承外端
++226.9 = 上支承轴→φ105定位Boss肩面
++264.5 = BODY—STEM_COVER安装面CAD
++313.3 = 填料压紧 / ADAPTER底参考
++337.3 = F25接口面
++339.8 = 键起点
++429.8 = 键终点
++430   = 阀杆顶部CAD参考
+```
+
+---
+
+# 7. V32旧安装面必须永久隔离
+
+禁止重新使用：
 
 ```text
 BODY_TOP_IF=+227
 BODY_BOTTOM_IF=-230
 ```
 
-当前正确身份：
+统一：
 
 ```text
-+226.9 = 上支承轴→φ105 Boss肩面
++226.9 ≈ 上支承轴→φ105 Boss肩面
 -230.0 = 下支承轴→φ70 Boss肩面
-```
 
-真正安装面：
-
-```text
+真正BODY安装面CAD：
 +264.5
 -270.5
 ```
 
 ---
 
-# 9. Front/XZ主纵剖面草图
+# 8. S03第一版Envelope
 
-在：
+当前 Skeleton 只建立构造/包络，不做制造实体。
 
-```text
-Front Plane
-```
-
-新建：
+X=0主包络：
 
 ```text
-SK_XZ_MAIN_SECTION
+BALL φ465
+BORE φ303
+BODY中央外包络 φ504 CAD
+MID FLANGE φ562.5 CAD
 ```
 
-只画Construction Geometry，不急着拉实体。
-
-必须有：
+F25包络：
 
 ```text
-球体圆：R232.5
-流道上下边界：±151.5
-球体左右平端：X=±174
-密封接触站：X=±166.036
-主BODY分界：X=+232.5
-端面：X=±305
+OD φ300
+Z=337.3
 ```
 
-再叠：
+这些包络的作用是：
 
 ```text
-上轴承Z=193.6~223.6
-上肩=226.9
-上BODY面=264.5
-
-下轴承Z=-227~-177
-下肩=-230
-下BODY面=-270.5
+快速观察总体空间
+后续零件定位
+预防明显硬干涉
 ```
 
-草图颜色/线型可以后续整理，第一版只要求尺寸完全驱动。
+不是最终制造表面。
 
 ---
 
-# 10. 主中法兰YZ草图
+# 9. 为什么不在Skeleton里建复杂实体
 
-在：
-
-```text
-PLN_X_BODY_JOINT
-```
-
-建：
+如果骨架阶段就加入：
 
 ```text
-SK_YZ_MAIN_JOINT
-```
-
-同心Construction圆：
-
-```text
-φ468.6  O圈槽根
-φ480    主止口
-φ490    缠绕垫ID
-φ500    缠绕垫OD
-φ526.5  M20 PCD
-φ562.5  中法兰OD CAD
-```
-
-20等分点：
-
-```text
-MID_STUD_QTY=20
-```
-
-孔/螺纹最终模式在BODY和BODY_COVER零件中分别实现，不在Skeleton里造真实螺纹。
-
----
-
-# 11. F25 XY草图
-
-在：
-
-```text
-PLN_Z_F25
-```
-
-建：
-
-```text
-SK_XY_F25_PATTERN
-```
-
-Construction圆：
-
-```text
-φ300  最小接口OD
-φ254  PCD
-φ200  最大止口包络
-φ60   键轴
-```
-
-8个孔中心：
-
-```text
-首孔22.5°
-步距45°
-```
-
-孔口径Skeleton仅显示参考：
-
-```text
-M16 threaded
-或
-φ17.5 clearance
-```
-
-具体孔类型等厂家图。
-
----
-
-# 12. 上接口XY草图
-
-在：
-
-```text
-PLN_Z_BODY_TOP_IF
-```
-
-建：
-
-```text
-SK_XY_TOP_IF
-```
-
-当前同心参考：
-
-```text
-φ105 定位Boss
-φ96.6 外O圈槽根候选
-φ105 垫片ID
-φ115 垫片OD
-```
-
-不要画4×M12最终孔位，因为：
-
-```text
-TOP_BODY_BOLT_PCD_FINAL=?
-```
-
-只留：
-
-```text
-4孔Pattern Placeholder
-```
-
----
-
-# 13. 下接口XY草图
-
-在：
-
-```text
-PLN_Z_BODY_BOTTOM_IF
-```
-
-建：
-
-```text
-SK_XY_BOTTOM_IF
-```
-
-同心参考：
-
-```text
-φ70 定位Boss
-φ61.6 O圈槽根当前C/R
-φ70 垫片ID
-φ80 垫片OD
-```
-
-同样：
-
-```text
-6×M12
-```
-
-只画等分占位，不锁最终BCD。
-
----
-
-# 14. 第一版Envelope只做5个
-
-不要一下生成所有零件。
-
-第一版Skeleton建议只做：
-
-```text
-ENV_BALL
-ENV_SEAT_L
-ENV_SEAT_R
-ENV_MAIN_BODY
-ENV_F25_ADAPTER
-```
-
-第二轮再加：
-
-```text
-ENV_STEM_COVER
-ENV_BOTTOM_COVER
-ENV_STEM
-```
-
-原因：
-
-> 先证明主X轴尺寸链和Side Entry装配通路稳定，再叠Z向复杂内轨。
-
----
-
-# 15. Skeleton里不要做真实螺纹/O圈实体
-
-Skeleton只负责：
-
-```text
-中心
-尺寸
-平面
-轴
-包络
-孔圈
-密封槽位置参考
-```
-
-不要在Skeleton里建：
-
-```text
-真实螺纹牙型
+真实螺纹
 O圈实体
-弹簧螺旋线
-键真实倒角
-螺栓头
-铸造圆角
+弹簧
+所有孔
+复杂铸造形状
 ```
 
-这些进入零件/装配层。
+会把“坐标/参数错误”和“零件特征错误”混在一起。
 
----
-
-# 16. 建完Skeleton后必须测的10项
-
-使用Evaluate → Measure：
+所以当前分层：
 
 ```text
-1. PLN_X_END_L ↔ PLN_X_END_R = 610
-2. 球体直径 =465
-3. 球体流道 =303
-4. 球体→φ480主开口径向余量=7.5
-5. X_BODY_JOINT=232.5
-6. BODY中央外包络≈504
-7. 主中法兰OD≈562.5
-8. Z_BODY_TOP_IF≈264.5
-9. Z_BODY_BOTTOM_IF≈-270.5
-10. F25接口面≈337.3
-```
+S03 Skeleton
+= 坐标 + 参数 + 基准 + 包络
 
-全部正确再进入零件。
-
----
-
-# 17. 第一版宏自动化到哪里
-
-V43规定第一版VBA宏只允许：
-
-```text
-检查活动文档是不是Part
-↓
-读取/建立Global Variables
-↓
-创建X/Z参考基准面
-↓
-创建/命名Axis_X、Axis_Z
-↓
-建立主草图的Construction Geometry
-↓
-Rebuild
-↓
-输出日志
-```
-
-禁止第一版宏：
-
-```text
-自动修改20寸零件
-自动替换44个组件
-自动切真实螺纹
-自动建O圈/弹簧
-自动生成工程图
+S04以后 Parts
+= 实体特征 + 功能几何
 ```
 
 ---
 
-# 18. 为什么这样比“直接宏生成整阀”稳定
+# 10. 当前验证方式——不能只看Feature名称
 
-此前宏出错常见原因：
-
-```text
-旧模型特征名不一致
-方程式不存在
-组件数组类型差异
-中文/英文特征名
-配置名不同
-20寸源模型不是全参数化
-```
-
-而Skeleton新建法：
+一开始曾出现：
 
 ```text
-没有历史特征债务
-没有组件替换
-没有旧配合
-没有20寸方程式依赖
+PLN_Z_M289_100 created
+但readback actual=0 expected=-289.1
 ```
 
-所以第一版成功率远高于“改旧20寸总装”。
+所以现在 S03 PASS 条件不是：
+
+```text
+“Feature创建成功”
+```
+
+而是：
+
+```text
+Feature存在
++
+ForceRebuild
++
+世界坐标独立回读
++
+What's Wrong / Feature Error
++
+保存成功
+```
+
+当前世界坐标验证已经证明：
+
+```text
+X=11 / 11 PASS
+Z=16 / 16 PASS
+```
 
 ---
 
-# 19. 下一步 V44
+# 11. 当前S03实机最终结果
 
-下一步可以正式输出：
-
-```text
-Q347F_12in_Class150_CreateSkeleton_V1.bas
-```
-
-目标：
+成功运行：
 
 ```text
-在你新建并打开00_SKELETON.SLDPRT后
-运行宏
-↓
-自动创建主要全局变量与基准面
-↓
-生成日志
+S00 PASS
+S01 PASS
+S02 PASS
+S03 PASS
 ```
 
-为了兼容中文SOLIDWORKS，宏尽量不通过“Front Plane/Top Plane”中文名称硬找特征，而优先用稳定的文档/FeatureManager对象和选择检查。
+关键结果：
 
-> **V43一句话结论：现在先建一个“不会错的空骨架”，比让AI一次性生成整台阀门更重要；骨架稳定后，后面每个零件只是把这套数字实体化。**
+```text
+Required station planes verified by feature name and world-coordinate readback.
+X=11
+Z=16
+
+Rebuild PASS
+What's Wrong errors=0
+warnings=0
+
+RefPlaneCount=33
+RefAxisCount=2
+```
+
+最终发布：
+
+```text
+SolidWorks_AutoBuild_Q347F_12in/02_output/00_SKELETON.SLDPRT
+```
+
+---
+
+# 12. RefPlaneCount=33为什么合理
+
+当前计数包含：
+
+```text
+SolidWorks原生基准面      3
+项目语义基准面            3
+X站位面                  11
+Z站位面                  16
+----------------------------
+合计                     33
+```
+
+轴：
+
+```text
+AXIS_X_FLOW
+AXIS_Z_SUPPORT
+```
+
+合计2根。
+
+---
+
+# 13. S03保存发布规则
+
+禁止直接覆盖上一版成功 Skeleton。
+
+当前：
+
+```text
+创建/修改
+↓
+保存 staging
+↓
+Rebuild / readback / What's Wrong
+↓
+PASS
+↓
+备份上一版成功文件
+↓
+publish到02_output
+```
+
+staging示例：
+
+```text
+03_backup/run_xxx/00_SKELETON_staging.SLDPRT
+```
+
+正式：
+
+```text
+02_output/00_SKELETON.SLDPRT
+```
+
+失败时不得发布为最新成功版。
+
+---
+
+# 14. V43自动化边界已经更新
+
+旧V43计划：
+
+```text
+下一步写CreateSkeleton_V1.bas
+```
+
+当前已经被正式路线替代：
+
+```text
+PowerShell + embedded C# + COM API
+```
+
+所以：
+
+```text
+“下一步V44 VBA Skeleton宏” = H/R-for-current-implementation
+```
+
+VBA仍允许：
+
+```text
+API单点实验
+本机诊断
+人工验证
+```
+
+但不作为永久一键构建主入口。
+
+---
+
+# 15. 当前正式构建阶段
+
+```text
+S00 环境             PASS
+S01 参数             PASS
+S02 SolidWorks       PASS
+S03 Skeleton         PASS
+S04 Ball             WAITING / 下一实施
+S05 Seats            WAITING
+S06 BODY             WAITING
+S07 BODY_COVER       WAITING
+S08 Z Parts          WAITING
+S09 ADAPTER/F25      WAITING
+S10 Assembly         WAITING
+S11 Validation       WAITING
+S12 Save/Report      WAITING
+```
+
+---
+
+# 16. 下一步唯一目标——S04 BALL
+
+S04需要从 Skeleton / 参数源消费：
+
+```text
+BALL_OD=465
+BORE_D=303
+BALL_W_X=348
+BALL_UPPER_BORE_D=105
+BALL_LOWER_BORE_D=70
+```
+
+当前CAD候选还包括：
+
+```text
+UPPER_BORE_DEPTH=30
+LOWER_BORE_DEPTH=52
+DRIVE_SLOT=70×44
+R8
+DEPTH=27
+```
+
+这些允许用于第一版 S04 参数化模型，但必须明确：
+
+```text
+CAD候选
+≠ 制造冻结
+```
+
+S04 PASS 至少要求：
+
+```text
+01_BALL.SLDPRT创建成功
+φ465回读正确
+φ303流道回读正确
+X向宽348回读正确
+φ105/φ70孔径正确
+关键接口/驱动槽存在
+ForceRebuild PASS
+What's Wrong errors=0
+Feature errors=0
+保存成功
+```
+
+---
+
+# 17. V43一句话结论
+
+现在已经不再是：
+
+```text
+“先试着建一个Skeleton看看”
+```
+
+而是：
+
+```text
+数字参数
+↓
+自动创建真实Skeleton
+↓
+世界坐标回读
+↓
+Rebuild / What's Wrong
+↓
+S03 PASS
+```
+
+这条基础链已经实机闭合。后续所有零件都必须沿这套**项目语义坐标 + 参数状态隔离 + 独立回读验证**规则继续。
