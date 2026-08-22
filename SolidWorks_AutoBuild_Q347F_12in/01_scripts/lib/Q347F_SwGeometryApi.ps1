@@ -149,6 +149,62 @@ namespace Q347F
             return feat;
         }
 
+        public static bool RebuildForReadback(object modelObject)
+        {
+            ModelDoc2 model = AsModel(modelObject);
+            return model.ForceRebuild3(false);
+        }
+
+        private static double ReadPlaneCoordinateFromCornerPointsMm(RefPlane plane, string featureName, string axis)
+        {
+            object rawPoints = plane.CornerPoints;
+            Array points = rawPoints as Array;
+            if (points == null || points.Length < 4)
+                throw new InvalidOperationException("RefPlane.CornerPoints did not return four points for " + featureName);
+
+            int coordIndex;
+            if (String.Equals(axis, "X", StringComparison.OrdinalIgnoreCase)) coordIndex = 0;
+            else if (String.Equals(axis, "Z", StringComparison.OrdinalIgnoreCase)) coordIndex = 2;
+            else throw new ArgumentException("Axis must be X or Z.");
+
+            double sum = 0.0;
+            double min = Double.PositiveInfinity;
+            double max = Double.NegativeInfinity;
+            int count = 0;
+            foreach (object pointObject in points)
+            {
+                MathPoint point = pointObject as MathPoint;
+                if (point == null) throw new InvalidOperationException("CornerPoints item is not MathPoint for " + featureName);
+                Array data = point.ArrayData as Array;
+                if (data == null || data.Length < 3) throw new InvalidOperationException("Invalid MathPoint.ArrayData for " + featureName);
+                double value = Convert.ToDouble(data.GetValue(coordIndex));
+                sum += value;
+                min = Math.Min(min, value);
+                max = Math.Max(max, value);
+                count++;
+            }
+            if (count == 0) throw new InvalidOperationException("No corner point coordinates for " + featureName);
+
+            // All four corner points on X=constant or Z=constant station planes must share the same target coordinate.
+            if (Math.Abs(max - min) > 1e-5)
+                throw new InvalidOperationException("Corner point spread is too large for station plane " + featureName);
+
+            return (sum / count) * 1000.0;
+        }
+
+        private static double ReadPlaneCoordinateFromTransformMm(RefPlane plane, string featureName, string axis)
+        {
+            MathTransform tx = plane.Transform;
+            if (tx == null) throw new InvalidOperationException("RefPlane.Transform returned null for " + featureName);
+            Array a = tx.ArrayData as Array;
+            if (a == null || a.Length < 12) throw new InvalidOperationException("Invalid RefPlane transform for " + featureName);
+            int index;
+            if (String.Equals(axis, "X", StringComparison.OrdinalIgnoreCase)) index = 9;
+            else if (String.Equals(axis, "Z", StringComparison.OrdinalIgnoreCase)) index = 11;
+            else throw new ArgumentException("Axis must be X or Z.");
+            return Convert.ToDouble(a.GetValue(index)) * 1000.0;
+        }
+
         public static double ReadPlaneCoordinateMm(object modelObject, string featureName, string axis)
         {
             ModelDoc2 model = AsModel(modelObject);
@@ -156,16 +212,16 @@ namespace Q347F
             if (feat == null) throw new InvalidOperationException("Plane not found: " + featureName);
             RefPlane plane = feat.GetSpecificFeature2() as RefPlane;
             if (plane == null) throw new InvalidOperationException("GetSpecificFeature2 did not return RefPlane for " + featureName);
-            MathTransform tx = plane.Transform;
-            if (tx == null) throw new InvalidOperationException("RefPlane.Transform returned null for " + featureName);
-            object raw = tx.ArrayData;
-            Array a = raw as Array;
-            if (a == null || a.Length < 12) throw new InvalidOperationException("Invalid RefPlane transform for " + featureName);
-            int index;
-            if (String.Equals(axis, "X", StringComparison.OrdinalIgnoreCase)) index = 9;
-            else if (String.Equals(axis, "Z", StringComparison.OrdinalIgnoreCase)) index = 11;
-            else throw new ArgumentException("Axis must be X or Z.");
-            return Convert.ToDouble(a.GetValue(index)) * 1000.0;
+
+            try
+            {
+                return ReadPlaneCoordinateFromCornerPointsMm(plane, featureName, axis);
+            }
+            catch
+            {
+                // Fallback for installations where CornerPoints is temporarily unavailable.
+                return ReadPlaneCoordinateFromTransformMm(plane, featureName, axis);
+            }
         }
 
         private static Feature GetLastSketchFeature(ModelDoc2 model)
