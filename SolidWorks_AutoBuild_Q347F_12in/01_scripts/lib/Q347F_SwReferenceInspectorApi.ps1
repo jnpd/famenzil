@@ -5,7 +5,6 @@ function Add-EmbeddedSwReferenceInspectorApiType {
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Reflection;
 using SolidWorks.Interop.sldworks;
 using SolidWorks.Interop.swconst;
 
@@ -49,46 +48,22 @@ namespace Q347F
 
     public static class SwReferenceInspectorApi
     {
-        private static SldWorks GetSessionApp(object sessionObject)
-        {
-            if (sessionObject == null) throw new ArgumentNullException("sessionObject");
-            FieldInfo f = sessionObject.GetType().GetField("App");
-            if (f == null) throw new InvalidOperationException("Session object has no public App field.");
-            SldWorks app = f.GetValue(sessionObject) as SldWorks;
-            if (app == null) throw new InvalidOperationException("Session App is not a SOLIDWORKS application object.");
-            return app;
-        }
-
-        private static string GetSessionRevision(object sessionObject)
-        {
-            try
-            {
-                FieldInfo f = sessionObject.GetType().GetField("Revision");
-                object v = f == null ? null : f.GetValue(sessionObject);
-                return v == null ? "" : Convert.ToString(v);
-            }
-            catch { return ""; }
-        }
-
         private static Feature FirstSubFeature(Feature feature)
         {
             if (feature == null) return null;
-            try { return feature.GetFirstSubFeature() as Feature; }
-            catch { return null; }
+            try { return feature.GetFirstSubFeature() as Feature; } catch { return null; }
         }
 
         private static Feature NextSubFeature(Feature feature)
         {
             if (feature == null) return null;
-            try { return feature.GetNextSubFeature() as Feature; }
-            catch { return null; }
+            try { return feature.GetNextSubFeature() as Feature; } catch { return null; }
         }
 
         private static Feature NextFeature(Feature feature)
         {
             if (feature == null) return null;
-            try { return feature.GetNextFeature() as Feature; }
-            catch { return null; }
+            try { return feature.GetNextFeature() as Feature; } catch { return null; }
         }
 
         private static void CollectDimensions(Feature f, RefFeatureInfo fi)
@@ -119,9 +94,7 @@ namespace Q347F
                     }
                 }
                 catch { }
-
-                try { current = f.GetNextDisplayDimension(current); }
-                catch { break; }
+                try { current = f.GetNextDisplayDimension(current); } catch { break; }
             }
         }
 
@@ -155,10 +128,7 @@ namespace Q347F
                 if (mgr == null) return new string[0];
                 int n = mgr.GetCount();
                 List<string> eq = new List<string>();
-                for (int i = 0; i < n; i++)
-                {
-                    try { eq.Add(mgr.get_Equation(i)); } catch { }
-                }
+                for (int i = 0; i < n; i++) { try { eq.Add(mgr.get_Equation(i)); } catch { } }
                 return eq.ToArray();
             }
             catch { return new string[0]; }
@@ -169,15 +139,12 @@ namespace Q347F
             bodyCount = 0;
             PartDoc part = model as PartDoc;
             if (part == null) return new double[0];
-
             try
             {
-                object rawBodies = part.GetBodies2((int)swBodyType_e.swSolidBody, true);
-                Array bodies = rawBodies as Array;
+                Array bodies = part.GetBodies2((int)swBodyType_e.swSolidBody, true) as Array;
                 bodyCount = bodies == null ? 0 : bodies.Length;
             }
             catch { }
-
             try
             {
                 Array box = part.GetPartBox(true) as Array;
@@ -202,40 +169,32 @@ namespace Q347F
             catch { return new double[0]; }
         }
 
-        public static RefPartReport Inspect(object sessionObject, string partPath)
+        public static RefPartReport Inspect(object appObject, string revision, string partPath)
         {
-            SldWorks app = GetSessionApp(sessionObject);
-            string revision = GetSessionRevision(sessionObject);
+            SldWorks app = appObject as SldWorks;
+            if (app == null) throw new ArgumentException("appObject is not a SOLIDWORKS SldWorks application.");
             if (String.IsNullOrWhiteSpace(partPath) || !File.Exists(partPath))
                 throw new FileNotFoundException("Reference SLDPRT not found", partPath);
+
+            string fullPath = Path.GetFullPath(partPath);
+            string workingDir = Path.GetDirectoryName(fullPath);
+            if (!String.IsNullOrWhiteSpace(workingDir)) { try { app.SetCurrentWorkingDirectory(workingDir); } catch { } }
 
             int errors = 0;
             int warnings = 0;
             ModelDoc2 model = null;
             bool openedHere = false;
-
-            string fullPath = Path.GetFullPath(partPath);
-            string workingDir = Path.GetDirectoryName(fullPath);
-            if (!String.IsNullOrWhiteSpace(workingDir))
-            {
-                try { app.SetCurrentWorkingDirectory(workingDir); } catch { }
-            }
-
             try { model = app.GetOpenDocumentByName(fullPath) as ModelDoc2; } catch { }
-
             if (model == null)
             {
                 object opened = app.OpenDoc6(
                     fullPath,
                     (int)swDocumentTypes_e.swDocPART,
                     (int)(swOpenDocOptions_e.swOpenDocOptions_Silent | swOpenDocOptions_e.swOpenDocOptions_ReadOnly),
-                    "",
-                    ref errors,
-                    ref warnings);
+                    "", ref errors, ref warnings);
                 model = opened as ModelDoc2;
                 openedHere = true;
             }
-
             if (model == null)
                 throw new InvalidOperationException("SOLIDWORKS could not open reference part. OpenErrors=" + errors + ", OpenWarnings=" + warnings);
 
@@ -244,7 +203,7 @@ namespace Q347F
                 RefPartReport report = new RefPartReport();
                 report.Path = fullPath;
                 report.Title = model.GetTitle();
-                report.Revision = revision;
+                report.Revision = revision ?? "";
                 report.OpenErrors = errors;
                 report.OpenWarnings = warnings;
                 try { report.ActiveConfiguration = model.ConfigurationManager.ActiveConfiguration.Name; } catch { report.ActiveConfiguration = ""; }
@@ -268,10 +227,7 @@ namespace Q347F
             }
             finally
             {
-                if (openedHere)
-                {
-                    try { app.CloseDoc(model.GetTitle()); } catch { }
-                }
+                if (openedHere) { try { app.CloseDoc(model.GetTitle()); } catch { } }
             }
         }
     }
