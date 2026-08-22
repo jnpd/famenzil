@@ -10,6 +10,15 @@ using SolidWorks.Interop.swconst;
 
 namespace Q347F
 {
+    public sealed class RefAsmDimensionInfo
+    {
+        public string Name;
+        public string FullName;
+        public double SystemValue;
+        public double ApproxMm;
+        public string FeatureName;
+    }
+
     public sealed class RefComponentInfo
     {
         public int Order;
@@ -47,7 +56,7 @@ namespace Q347F
         public bool Suppressed;
         public int Alignment;
         public List<RefMateEntityInfo> Entities = new List<RefMateEntityInfo>();
-        public List<RefDimensionInfo> Dimensions = new List<RefDimensionInfo>();
+        public List<RefAsmDimensionInfo> Dimensions = new List<RefAsmDimensionInfo>();
     }
 
     public sealed class RefAssemblyReport
@@ -96,7 +105,7 @@ namespace Q347F
             return level;
         }
 
-        private static void CollectFeatureDimensions(Feature f, List<RefDimensionInfo> dims)
+        private static void CollectFeatureDimensions(Feature f, List<RefAsmDimensionInfo> dims)
         {
             object current = null;
             try { current = f.GetFirstDisplayDimension(); } catch { return; }
@@ -112,7 +121,7 @@ namespace Q347F
                         if (d != null)
                         {
                             double v = d.SystemValue;
-                            dims.Add(new RefDimensionInfo
+                            dims.Add(new RefAsmDimensionInfo
                             {
                                 Name = d.Name,
                                 FullName = d.FullName,
