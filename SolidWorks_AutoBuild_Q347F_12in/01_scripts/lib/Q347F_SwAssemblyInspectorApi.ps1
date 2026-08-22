@@ -5,20 +5,12 @@ function Add-EmbeddedSwAssemblyInspectorApiType {
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using SolidWorks.Interop.sldworks;
 using SolidWorks.Interop.swconst;
 
 namespace Q347F
 {
-    public sealed class RefAsmDimensionInfo
-    {
-        public string Name;
-        public string FullName;
-        public double SystemValue;
-        public double ApproxMm;
-        public string FeatureName;
-    }
-
     public sealed class RefComponentInfo
     {
         public int Order;
@@ -47,6 +39,15 @@ namespace Q347F
         public double[] EntityParams;
     }
 
+    public sealed class AsmDimensionInfo
+    {
+        public string Name;
+        public string FullName;
+        public double SystemValue;
+        public double ApproxMm;
+        public string FeatureName;
+    }
+
     public sealed class RefMateInfo
     {
         public int Order;
@@ -56,7 +57,7 @@ namespace Q347F
         public bool Suppressed;
         public int Alignment;
         public List<RefMateEntityInfo> Entities = new List<RefMateEntityInfo>();
-        public List<RefAsmDimensionInfo> Dimensions = new List<RefAsmDimensionInfo>();
+        public List<AsmDimensionInfo> Dimensions = new List<AsmDimensionInfo>();
     }
 
     public sealed class RefAssemblyReport
@@ -77,6 +78,27 @@ namespace Q347F
 
     public static class SwAssemblyInspectorApi
     {
+        private static SldWorks GetSessionApp(object sessionObject)
+        {
+            if (sessionObject == null) throw new ArgumentNullException("sessionObject");
+            FieldInfo f = sessionObject.GetType().GetField("App");
+            if (f == null) throw new InvalidOperationException("Session object has no public App field.");
+            SldWorks app = f.GetValue(sessionObject) as SldWorks;
+            if (app == null) throw new InvalidOperationException("Session App is not a SOLIDWORKS application object.");
+            return app;
+        }
+
+        private static string GetSessionRevision(object sessionObject)
+        {
+            try
+            {
+                FieldInfo f = sessionObject.GetType().GetField("Revision");
+                object v = f == null ? null : f.GetValue(sessionObject);
+                return v == null ? "" : Convert.ToString(v);
+            }
+            catch { return ""; }
+        }
+
         private static double[] ToDoubleArray(object raw)
         {
             Array a = raw as Array;
@@ -105,7 +127,7 @@ namespace Q347F
             return level;
         }
 
-        private static void CollectFeatureDimensions(Feature f, List<RefAsmDimensionInfo> dims)
+        private static void CollectFeatureDimensions(Feature f, List<AsmDimensionInfo> dims)
         {
             object current = null;
             try { current = f.GetFirstDisplayDimension(); } catch { return; }
@@ -121,7 +143,7 @@ namespace Q347F
                         if (d != null)
                         {
                             double v = d.SystemValue;
-                            dims.Add(new RefAsmDimensionInfo
+                            dims.Add(new AsmDimensionInfo
                             {
                                 Name = d.Name,
                                 FullName = d.FullName,
@@ -266,9 +288,10 @@ namespace Q347F
             report.MateCount = report.Mates.Count;
         }
 
-        public static RefAssemblyReport Inspect(SwSession session, string assemblyPath)
+        public static RefAssemblyReport Inspect(object sessionObject, string assemblyPath)
         {
-            if (session == null || session.App == null) throw new ArgumentNullException("session");
+            SldWorks app = GetSessionApp(sessionObject);
+            string revision = GetSessionRevision(sessionObject);
             if (String.IsNullOrWhiteSpace(assemblyPath) || !File.Exists(assemblyPath))
                 throw new FileNotFoundException("Reference SLDASM not found", assemblyPath);
 
@@ -277,10 +300,10 @@ namespace Q347F
             ModelDoc2 model = null;
             bool openedHere = false;
 
-            try { model = session.App.GetOpenDocumentByName(assemblyPath) as ModelDoc2; } catch { }
+            try { model = app.GetOpenDocumentByName(assemblyPath) as ModelDoc2; } catch { }
             if (model == null)
             {
-                object opened = session.App.OpenDoc6(
+                object opened = app.OpenDoc6(
                     assemblyPath,
                     (int)swDocumentTypes_e.swDocASSEMBLY,
                     (int)(swOpenDocOptions_e.swOpenDocOptions_Silent | swOpenDocOptions_e.swOpenDocOptions_ReadOnly),
@@ -301,7 +324,7 @@ namespace Q347F
                 RefAssemblyReport report = new RefAssemblyReport();
                 report.Path = Path.GetFullPath(assemblyPath);
                 report.Title = model.GetTitle();
-                report.Revision = session.Revision;
+                report.Revision = revision;
                 report.OpenErrors = errors;
                 report.OpenWarnings = warnings;
                 try { report.ActiveConfiguration = model.ConfigurationManager.ActiveConfiguration.Name; } catch { report.ActiveConfiguration = ""; }
@@ -315,7 +338,7 @@ namespace Q347F
             {
                 if (openedHere)
                 {
-                    try { session.App.CloseDoc(model.GetTitle()); } catch { }
+                    try { app.CloseDoc(model.GetTitle()); } catch { }
                 }
             }
         }
