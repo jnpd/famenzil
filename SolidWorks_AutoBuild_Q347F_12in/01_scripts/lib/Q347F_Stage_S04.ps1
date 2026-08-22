@@ -17,7 +17,22 @@ function Invoke-S04 {
         $ballR = Get-Param 'BALL_R'
         $upperDepth = Get-Param 'BALL_UPPER_BORE_DEPTH'
         $lowerDepth = Get-Param 'BALL_LOWER_BORE_DEPTH'
+        $upperBoreR = (Get-Param 'BALL_UPPER_BORE_D') / 2.0
+        $lowerBoreR = (Get-Param 'BALL_LOWER_BORE_D') / 2.0
         $slotStartZ = $ballR - $upperDepth
+
+        # Analytical final-body Z envelope after the polar support bores are cut.
+        # The finished body no longer spans BALL_OD in Z because D105 removes the north-pole
+        # cap and D70 removes the south-pole cap. Validate the post-machining geometry, not the
+        # pre-machining sphere. For a blind polar bore the remaining extreme is the larger of:
+        #   sphere/bore intersection = sqrt(R^2-r^2)
+        #   blind-cut floor distance from center = R-depth
+        $upperSphereEdgeZ = [Math]::Sqrt([Math]::Max(0.0, ($ballR * $ballR) - ($upperBoreR * $upperBoreR)))
+        $lowerSphereEdgeAbsZ = [Math]::Sqrt([Math]::Max(0.0, ($ballR * $ballR) - ($lowerBoreR * $lowerBoreR)))
+        $expectedZMax = [Math]::Max($upperSphereEdgeZ, ($ballR - $upperDepth))
+        $expectedZMin = -[Math]::Max($lowerSphereEdgeAbsZ, ($ballR - $lowerDepth))
+        $expectedZSpan = $expectedZMax - $expectedZMin
+        Write-RunLog 'S04' 'PLAN_AUDIT' 27 'PASS' ("Expected final body envelope after support bores: Zmin={0:N3}, Zmax={1:N3}, Zspan={2:N3} mm (not BALL_OD={3})." -f $expectedZMin, $expectedZMax, $expectedZSpan, (Get-Param 'BALL_OD'))
 
         $topPlane = Convert-StationName 'Z' $ballR
         $bottomPlane = Convert-StationName 'Z' (-$ballR)
@@ -100,10 +115,15 @@ function Invoke-S04 {
         $xSpan = $audit.XMaxMm - $audit.XMinMm
         $ySpan = $audit.YMaxMm - $audit.YMinMm
         $zSpan = $audit.ZMaxMm - $audit.ZMinMm
+
+        # X and Y extremes survive the current cuts, while Z extremes are intentionally removed
+        # by the top/bottom support bores. Compare each axis against its post-feature expectation.
         Assert-Near 'BALL audit X width' $xSpan (Get-Param 'BALL_W_X') 3.0
         Assert-Near 'BALL audit Y OD' $ySpan (Get-Param 'BALL_OD') 3.0
-        Assert-Near 'BALL audit Z OD' $zSpan (Get-Param 'BALL_OD') 3.0
-        Write-RunLog 'S04' 'AUDIT' 33 'PASS' ("SolidBodyCount=1; approximate body box X={0:N3}, Y={1:N3}, Z={2:N3} mm." -f $xSpan, $ySpan, $zSpan)
+        Assert-Near 'BALL audit Z max after D105 cut' $audit.ZMaxMm $expectedZMax 3.0
+        Assert-Near 'BALL audit Z min after D70 cut' $audit.ZMinMm $expectedZMin 3.0
+        Assert-Near 'BALL audit Z span after support cuts' $zSpan $expectedZSpan 3.0
+        Write-RunLog 'S04' 'AUDIT' 33 'PASS' ("SolidBodyCount=1; body box X={0:N3}, Y={1:N3}, Z={2:N3} mm; expected post-cut Z={3:N3} mm." -f $xSpan, $ySpan, $zSpan, $expectedZSpan)
 
         if ($validation.WarningCount -gt 0) {
             Write-RunLog 'S04' 'WHATS_WRONG' 33 'WARN' ("BALL rebuild PASS; errors=0; warnings={0}." -f $validation.WarningCount)
