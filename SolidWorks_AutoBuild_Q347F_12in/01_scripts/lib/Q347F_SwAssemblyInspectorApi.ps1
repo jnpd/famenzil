@@ -2,11 +2,11 @@ function Add-EmbeddedSwAssemblyInspectorApiType {
     if ('Q347F.SwAssemblyInspectorApi' -as [type]) { return }
 
     $source = @'
-using System;
-using System.Collections.Generic;
-using System.IO;
-using SolidWorks.Interop.sldworks;
-using SolidWorks.Interop.swconst;
+using Sys = System;
+using IO = System.IO;
+using Collections = System.Collections.Generic;
+using SW = SolidWorks.Interop.sldworks;
+using SWC = SolidWorks.Interop.swconst;
 
 namespace Q347F
 {
@@ -55,8 +55,8 @@ namespace Q347F
         public string TypeName;
         public bool Suppressed;
         public int Alignment;
-        public List<RefMateEntityInfo> Entities = new List<RefMateEntityInfo>();
-        public List<AsmDimensionInfo> Dimensions = new List<AsmDimensionInfo>();
+        public Collections.List<RefMateEntityInfo> Entities = new Collections.List<RefMateEntityInfo>();
+        public Collections.List<AsmDimensionInfo> Dimensions = new Collections.List<AsmDimensionInfo>();
     }
 
     public sealed class RefAssemblyReport
@@ -71,38 +71,77 @@ namespace Q347F
         public int LightweightComponentCount;
         public int MissingReferenceCount;
         public int MateCount;
-        public List<RefComponentInfo> Components = new List<RefComponentInfo>();
-        public List<RefMateInfo> Mates = new List<RefMateInfo>();
+        public Collections.List<RefComponentInfo> Components = new Collections.List<RefComponentInfo>();
+        public Collections.List<RefMateInfo> Mates = new Collections.List<RefMateInfo>();
     }
 
     public static class SwAssemblyInspectorApi
     {
-        private static Feature FirstSubFeature(Feature feature)
+        private static SW.Feature FirstSubFeature(SW.Feature feature)
         {
             if (feature == null) return null;
-            try { return feature.GetFirstSubFeature() as Feature; } catch { return null; }
+            try { return feature.GetFirstSubFeature() as SW.Feature; } catch { return null; }
         }
 
-        private static Feature NextSubFeature(Feature feature)
+        private static SW.Feature NextSubFeature(SW.Feature feature)
         {
             if (feature == null) return null;
-            try { return feature.GetNextSubFeature() as Feature; } catch { return null; }
+            try { return feature.GetNextSubFeature() as SW.Feature; } catch { return null; }
         }
 
-        private static Feature NextFeature(Feature feature)
+        private static SW.Feature NextFeature(SW.Feature feature)
         {
             if (feature == null) return null;
-            try { return feature.GetNextFeature() as Feature; } catch { return null; }
+            try { return feature.GetNextFeature() as SW.Feature; } catch { return null; }
+        }
+
+        private static SW.ModelDoc2 FindOpenDocumentByPathOrTitle(SW.SldWorks app, string fullPath)
+        {
+            if (app == null || Sys.String.IsNullOrWhiteSpace(fullPath)) return null;
+            string target;
+            try { target = IO.Path.GetFullPath(fullPath); } catch { target = fullPath; }
+            string titleWanted = IO.Path.GetFileName(target);
+
+            try
+            {
+                SW.ModelDoc2 exact = app.GetOpenDocumentByName(target) as SW.ModelDoc2;
+                if (exact != null) return exact;
+            }
+            catch { }
+
+            try
+            {
+                SW.ModelDoc2 cur = app.GetFirstDocument() as SW.ModelDoc2;
+                int guard = 0;
+                while (cur != null && guard++ < 500)
+                {
+                    string path = "";
+                    string title = "";
+                    try { path = cur.GetPathName(); } catch { }
+                    try { title = cur.GetTitle(); } catch { }
+                    if (!Sys.String.IsNullOrWhiteSpace(path))
+                    {
+                        string normalized;
+                        try { normalized = IO.Path.GetFullPath(path); } catch { normalized = path; }
+                        if (Sys.String.Equals(normalized, target, Sys.StringComparison.OrdinalIgnoreCase)) return cur;
+                    }
+                    if (!Sys.String.IsNullOrWhiteSpace(title) &&
+                        Sys.String.Equals(title, titleWanted, Sys.StringComparison.OrdinalIgnoreCase)) return cur;
+                    try { cur = cur.GetNext() as SW.ModelDoc2; } catch { cur = null; }
+                }
+            }
+            catch { }
+            return null;
         }
 
         private static double[] ToDoubleArray(object raw)
         {
-            Array a = raw as Array;
+            Sys.Array a = raw as Sys.Array;
             if (a == null) return new double[0];
             double[] result = new double[a.Length];
             for (int i = 0; i < a.Length; i++)
             {
-                try { result[i] = Convert.ToDouble(a.GetValue(i)); }
+                try { result[i] = Sys.Convert.ToDouble(a.GetValue(i)); }
                 catch { result[i] = 0.0; }
             }
             return result;
@@ -110,20 +149,47 @@ namespace Q347F
 
         private static string ParentFromName(string name)
         {
-            if (String.IsNullOrWhiteSpace(name)) return "";
+            if (Sys.String.IsNullOrWhiteSpace(name)) return "";
             int p = name.LastIndexOf('/');
             return p <= 0 ? "" : name.Substring(0, p);
         }
 
         private static int LevelFromName(string name)
         {
-            if (String.IsNullOrWhiteSpace(name)) return 0;
+            if (Sys.String.IsNullOrWhiteSpace(name)) return 0;
             int level = 0;
             foreach (char ch in name) if (ch == '/') level++;
             return level;
         }
 
-        private static void CollectFeatureDimensions(Feature f, List<AsmDimensionInfo> dims)
+        private static int DocumentTypeFromPath(string path)
+        {
+            string ext = "";
+            try { ext = IO.Path.GetExtension(path) ?? ""; } catch { }
+            if (ext.Equals(".SLDPRT", Sys.StringComparison.OrdinalIgnoreCase)) return (int)SWC.swDocumentTypes_e.swDocPART;
+            if (ext.Equals(".SLDASM", Sys.StringComparison.OrdinalIgnoreCase)) return (int)SWC.swDocumentTypes_e.swDocASSEMBLY;
+            if (ext.Equals(".SLDDRW", Sys.StringComparison.OrdinalIgnoreCase)) return (int)SWC.swDocumentTypes_e.swDocDRAWING;
+            return 0;
+        }
+
+        private static string ResolveComponentPath(string rawPath, string assemblyDir)
+        {
+            if (Sys.String.IsNullOrWhiteSpace(rawPath)) return "";
+            try
+            {
+                if (IO.File.Exists(rawPath)) return IO.Path.GetFullPath(rawPath);
+                string file = IO.Path.GetFileName(rawPath);
+                if (!Sys.String.IsNullOrWhiteSpace(file) && !Sys.String.IsNullOrWhiteSpace(assemblyDir))
+                {
+                    string local = IO.Path.Combine(assemblyDir, file);
+                    if (IO.File.Exists(local)) return IO.Path.GetFullPath(local);
+                }
+            }
+            catch { }
+            return rawPath;
+        }
+
+        private static void CollectFeatureDimensions(SW.Feature f, Collections.List<AsmDimensionInfo> dims)
         {
             object current = null;
             try { current = f.GetFirstDisplayDimension(); } catch { return; }
@@ -132,10 +198,10 @@ namespace Q347F
             {
                 try
                 {
-                    DisplayDimension dd = current as DisplayDimension;
+                    SW.DisplayDimension dd = current as SW.DisplayDimension;
                     if (dd != null)
                     {
-                        Dimension d = dd.GetDimension2(0);
+                        SW.Dimension d = dd.GetDimension2(0);
                         if (d != null)
                         {
                             double v = d.SystemValue;
@@ -155,33 +221,35 @@ namespace Q347F
             }
         }
 
-        private static void CollectComponents(AssemblyDoc assy, RefAssemblyReport report)
+        private static void CollectComponents(SW.AssemblyDoc assy, string assemblyDir, RefAssemblyReport report)
         {
-            Array components = assy.GetComponents(false) as Array;
+            Sys.Array components = assy.GetComponents(false) as Sys.Array;
             if (components == null) return;
             int order = 0;
             foreach (object o in components)
             {
-                Component2 c = o as Component2;
+                SW.Component2 c = o as SW.Component2;
                 if (c == null) continue;
                 RefComponentInfo ci = new RefComponentInfo();
                 ci.Order = ++order;
                 try { ci.Name = c.Name2; } catch { ci.Name = ""; }
                 ci.ParentName = ParentFromName(ci.Name);
                 ci.Level = LevelFromName(ci.Name);
-                try { ci.Path = c.GetPathName(); } catch { ci.Path = ""; }
+                string rawPath = "";
+                try { rawPath = c.GetPathName(); } catch { }
+                ci.Path = ResolveComponentPath(rawPath, assemblyDir);
                 try { ci.ReferencedConfiguration = c.ReferencedConfiguration; } catch { ci.ReferencedConfiguration = ""; }
-                try { ci.DocumentType = c.GetType(); } catch { ci.DocumentType = 0; }
+                ci.DocumentType = DocumentTypeFromPath(ci.Path);
                 try { ci.SuppressionState = c.GetSuppression(); } catch { ci.SuppressionState = -1; }
                 try { ci.Hidden = c.IsHidden(true); } catch { ci.Hidden = false; }
                 try { ci.Fixed = c.IsFixed(); } catch { ci.Fixed = false; }
-                ci.MissingReference = !String.IsNullOrWhiteSpace(ci.Path) && !File.Exists(ci.Path);
+                ci.MissingReference = !Sys.String.IsNullOrWhiteSpace(ci.Path) && !IO.File.Exists(ci.Path);
                 if (ci.MissingReference) report.MissingReferenceCount++;
 
                 ci.Transform = new double[0];
                 try
                 {
-                    MathTransform t = c.Transform2;
+                    SW.MathTransform t = c.Transform2;
                     if (t != null)
                     {
                         ci.Transform = ToDoubleArray(t.ArrayData);
@@ -199,24 +267,24 @@ namespace Q347F
             report.ComponentCount = report.Components.Count;
         }
 
-        private static void CollectMateFeature(Feature mateFeature, string assemblyPath, RefAssemblyReport report, ref int order)
+        private static void CollectMateFeature(SW.Feature mateFeature, string assemblyPath, RefAssemblyReport report, ref int order)
         {
             if (mateFeature == null) return;
             string typeName = "";
             try { typeName = mateFeature.GetTypeName2(); } catch { }
-            if (String.IsNullOrWhiteSpace(typeName) || !typeName.StartsWith("Mate", StringComparison.OrdinalIgnoreCase)) return;
+            if (Sys.String.IsNullOrWhiteSpace(typeName) || !typeName.StartsWith("Mate", Sys.StringComparison.OrdinalIgnoreCase)) return;
 
             RefMateInfo mi = new RefMateInfo();
             mi.Order = ++order;
             mi.AssemblyPath = assemblyPath;
-            mi.Name = mateFeature.Name;
+            try { mi.Name = mateFeature.Name; } catch { mi.Name = ""; }
             mi.TypeName = typeName;
             try { mi.Suppressed = mateFeature.IsSuppressed(); } catch { mi.Suppressed = false; }
             CollectFeatureDimensions(mateFeature, mi.Dimensions);
 
             try
             {
-                Mate2 mate = mateFeature.GetSpecificFeature2() as Mate2;
+                SW.Mate2 mate = mateFeature.GetSpecificFeature2() as SW.Mate2;
                 if (mate != null)
                 {
                     try { mi.Alignment = mate.Alignment; } catch { mi.Alignment = 0; }
@@ -226,7 +294,7 @@ namespace Q347F
                     {
                         try
                         {
-                            MateEntity2 e = mate.MateEntity(i) as MateEntity2;
+                            SW.MateEntity2 e = mate.MateEntity(i) as SW.MateEntity2;
                             if (e == null) continue;
                             RefMateEntityInfo ei = new RefMateEntityInfo();
                             ei.Index = i;
@@ -234,7 +302,7 @@ namespace Q347F
                             try { ei.EntityParams = ToDoubleArray(e.EntityParams); } catch { ei.EntityParams = new double[0]; }
                             try
                             {
-                                Component2 rc = e.ReferenceComponent as Component2;
+                                SW.Component2 rc = e.ReferenceComponent as SW.Component2;
                                 if (rc != null)
                                 {
                                     try { ei.ComponentName = rc.Name2; } catch { ei.ComponentName = ""; }
@@ -252,19 +320,19 @@ namespace Q347F
             report.Mates.Add(mi);
         }
 
-        private static void CollectMates(ModelDoc2 model, string assemblyPath, RefAssemblyReport report)
+        private static void CollectMates(SW.ModelDoc2 model, string assemblyPath, RefAssemblyReport report)
         {
             int order = 0;
-            Feature f = null;
-            try { f = model.FirstFeature() as Feature; } catch { }
+            SW.Feature f = null;
+            try { f = model.FirstFeature() as SW.Feature; } catch { }
             int guard = 0;
             while (f != null && guard++ < 5000)
             {
                 string type = "";
                 try { type = f.GetTypeName2(); } catch { }
-                if (String.Equals(type, "MateGroup", StringComparison.OrdinalIgnoreCase))
+                if (Sys.String.Equals(type, "MateGroup", Sys.StringComparison.OrdinalIgnoreCase))
                 {
-                    Feature sub = FirstSubFeature(f);
+                    SW.Feature sub = FirstSubFeature(f);
                     int subGuard = 0;
                     while (sub != null && subGuard++ < 5000)
                     {
@@ -279,38 +347,42 @@ namespace Q347F
 
         public static RefAssemblyReport Inspect(object appObject, string revision, string assemblyPath)
         {
-            SldWorks app = appObject as SldWorks;
-            if (app == null) throw new ArgumentException("appObject is not a SOLIDWORKS SldWorks application.");
-            if (String.IsNullOrWhiteSpace(assemblyPath) || !File.Exists(assemblyPath))
-                throw new FileNotFoundException("Reference SLDASM not found", assemblyPath);
+            SW.SldWorks app = appObject as SW.SldWorks;
+            if (app == null) throw new Sys.ArgumentException("appObject is not a SOLIDWORKS SldWorks application.");
+            if (Sys.String.IsNullOrWhiteSpace(assemblyPath) || !IO.File.Exists(assemblyPath))
+                throw new IO.FileNotFoundException("Reference SLDASM not found", assemblyPath);
 
-            string fullPath = Path.GetFullPath(assemblyPath);
-            string workingDir = Path.GetDirectoryName(fullPath);
-            if (!String.IsNullOrWhiteSpace(workingDir)) { try { app.SetCurrentWorkingDirectory(workingDir); } catch { } }
+            string fullPath = IO.Path.GetFullPath(assemblyPath);
+            string workingDir = IO.Path.GetDirectoryName(fullPath);
+            if (!Sys.String.IsNullOrWhiteSpace(workingDir)) { try { app.SetCurrentWorkingDirectory(workingDir); } catch { } }
 
             int errors = 0;
             int warnings = 0;
-            ModelDoc2 model = null;
+            SW.ModelDoc2 model = FindOpenDocumentByPathOrTitle(app, fullPath);
             bool openedHere = false;
-            try { model = app.GetOpenDocumentByName(fullPath) as ModelDoc2; } catch { }
             if (model == null)
             {
                 int openOptions =
-                    (int)swOpenDocOptions_e.swOpenDocOptions_Silent |
-                    (int)swOpenDocOptions_e.swOpenDocOptions_ReadOnly |
-                    (int)swOpenDocOptions_e.swOpenDocOptions_OverrideDefaultLoadLightweight |
-                    (int)swOpenDocOptions_e.swOpenDocOptions_LoadLightweight;
-                object opened = app.OpenDoc6(fullPath, (int)swDocumentTypes_e.swDocASSEMBLY, openOptions, "", ref errors, ref warnings);
-                model = opened as ModelDoc2;
-                openedHere = true;
+                    (int)SWC.swOpenDocOptions_e.swOpenDocOptions_Silent |
+                    (int)SWC.swOpenDocOptions_e.swOpenDocOptions_ReadOnly |
+                    (int)SWC.swOpenDocOptions_e.swOpenDocOptions_OverrideDefaultLoadLightweight |
+                    (int)SWC.swOpenDocOptions_e.swOpenDocOptions_LoadLightweight;
+                object opened = app.OpenDoc6(fullPath, (int)SWC.swDocumentTypes_e.swDocASSEMBLY, openOptions, "", ref errors, ref warnings);
+                model = opened as SW.ModelDoc2;
+                openedHere = model != null;
+                if (model == null && errors == 65536)
+                {
+                    model = FindOpenDocumentByPathOrTitle(app, fullPath);
+                    openedHere = false;
+                }
             }
             if (model == null)
-                throw new InvalidOperationException("SOLIDWORKS could not open reference assembly. OpenErrors=" + errors + ", OpenWarnings=" + warnings);
+                throw new Sys.InvalidOperationException("SOLIDWORKS could not open reference assembly. OpenErrors=" + errors + ", OpenWarnings=" + warnings + ", Path=" + fullPath);
 
             try
             {
-                AssemblyDoc assy = model as AssemblyDoc;
-                if (assy == null) throw new InvalidOperationException("Opened document is not an AssemblyDoc.");
+                SW.AssemblyDoc assy = model as SW.AssemblyDoc;
+                if (assy == null) throw new Sys.InvalidOperationException("Opened document is not an AssemblyDoc.");
                 RefAssemblyReport report = new RefAssemblyReport();
                 report.Path = fullPath;
                 report.Title = model.GetTitle();
@@ -319,13 +391,13 @@ namespace Q347F
                 report.OpenWarnings = warnings;
                 try { report.ActiveConfiguration = model.ConfigurationManager.ActiveConfiguration.Name; } catch { report.ActiveConfiguration = ""; }
                 try { report.LightweightComponentCount = assy.GetLightWeightComponentCount(); } catch { report.LightweightComponentCount = -1; }
-                CollectComponents(assy, report);
+                CollectComponents(assy, workingDir, report);
                 CollectMates(model, report.Path, report);
                 return report;
             }
             finally
             {
-                if (openedHere) { try { app.CloseDoc(model.GetTitle()); } catch { } }
+                if (openedHere && model != null) { try { app.CloseDoc(model.GetTitle()); } catch { } }
             }
         }
     }
