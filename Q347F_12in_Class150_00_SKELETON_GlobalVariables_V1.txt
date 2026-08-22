@@ -9,6 +9,15 @@
 "BALL_W_X" = 348mm
 "BALL_X_R" = "BALL_W_X" / 2
 "BALL_X_L" = -"BALL_W_X" / 2
+# S04 TEMP-FROZEN manufacturing dimensions: draw the complete BALL first, then replace by supplier/final drawing values if needed.
+"BALL_UPPER_BORE_D" = 105mm
+"BALL_UPPER_BORE_DEPTH" = 35mm
+"BALL_LOWER_BORE_D" = 70mm
+"BALL_LOWER_BORE_DEPTH" = 52mm
+"BALL_DRIVE_SLOT_L_X" = 70mm
+"BALL_DRIVE_SLOT_W_Y" = 50mm
+"BALL_DRIVE_SLOT_R" = 8mm
+"BALL_DRIVE_SLOT_DEPTH" = 35mm
 "X_CONTACT_R" = 166.036mm
 "X_CONTACT_L" = -166.036mm
 "X_BODY_JOINT_CAD" = 232.5mm
