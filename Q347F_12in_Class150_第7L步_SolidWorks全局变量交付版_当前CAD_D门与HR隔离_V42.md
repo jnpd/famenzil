@@ -1,125 +1,149 @@
-# Q347F 12寸 Class150——第7L步：SolidWorks全局变量交付版 / 当前CAD / D门 / H-R隔离 V42
+# Q347F 12寸 Class150——第7L步：SolidWorks参数交付 / 当前CAD / D门 / H-R隔离 V42（当前统一版）
 
-> **定位**：V41已经证明当前主总装骨架在XYZ三方向具备第一版装配通路。V42开始真正“交给SolidWorks”，不再只写计算说明。
->
-> **配套文件**：[Q347F_12in_Class150_00_SKELETON_GlobalVariables_V1.txt](./Q347F_12in_Class150_00_SKELETON_GlobalVariables_V1.txt)
->
-> **核心原则**：外部方程式文件只服务 `00_SKELETON.SLDPRT`。所有 `D` 未知值与 `H/R` 历史错误值都不写进自动方程式；少量 `C/R` 或 `P-XREF` 当前草模值若必须用于形成实体，会明确列入“仅CAD显示层”，不得从模型反向抄成制造图尺寸。
+> **定位**：V42定义“哪些工程参数可以进入 SolidWorks、以什么方式进入、哪些值必须隔离”。  
+> **当前实机状态**：S00～S03 已 PASS，`00_SKELETON.SLDPRT` 已成功生成。  
+> **正式技术路线**：`BAT → PowerShell → 内嵌C# → SolidWorks COM API`。VBA仅保留为诊断/试验工具，不是正式主构建器。  
+> **参数源**：[Q347F_12in_Class150_00_SKELETON_GlobalVariables_V1.txt](./Q347F_12in_Class150_00_SKELETON_GlobalVariables_V1.txt)
 
 [← 总导航](./00_Q347F_12in_Class150_文档导航_从这里开始.md)  
-[← V41 完整总装骨架](./Q347F_12in_Class150_第7K步_完整总装骨架_XYZ包络_装配与维修路径预检查_V41.md)
+[← 当前数字总账](./Q347F_12in_Class150_数字化总装骨架_尺寸参数_装配关系_空间坐标总账.md)  
+[→ V43 Skeleton规则](./Q347F_12in_Class150_第7M步_SolidWorks_Skeleton手工稳定建模顺序_宏自动化边界_V43.md)  
+[→ 自动建模永久主流程](./Q347F_12in_Class150_SolidWorks一键自动建模_永久唯一主流程.md)
 
 ---
 
-# 1. SOLIDWORKS 2025外部方程式的正确用法
+# 1. 当前参数交付方式
 
-SOLIDWORKS支持在外部文本文件中按“方程式管理器同样格式”写：
+旧的“人工在 Equation Manager 中长期 Link to external file”可以作为手工调试方法，但**不是当前正式一键构建的唯一实现**。
 
-```text
-"base" = 20
-"D1@Boss-Extrude1" = "base" + 10
-```
-
-然后：
-
-```text
-工具 Tools
-→ 方程式 Equations
-→ 链接到外部文件 / Link to external file
-```
-
-本项目唯一主链接文件：
+当前正式实现：
 
 ```text
 Q347F_12in_Class150_00_SKELETON_GlobalVariables_V1.txt
-```
-
-建议：
-
-```text
+        ↓
+S01 PowerShell解析/单位与逻辑校验
+        ↓
+生成本次 parameters_snapshot.txt + SHA256
+        ↓
+S03 通过内嵌C#调用 EquationMgr
+        ↓
+ImportOrUpdateEquations
+        ↓
 00_SKELETON.SLDPRT
-↕ 唯一长期链接
-GlobalVariables_V1.txt
 ```
 
-零件不要十几个一起长期链接同一个txt；零件优先通过Skeleton的基准面、草图、实体/曲面引用获得尺寸。
+所以 txt 的角色是：
+
+> **唯一当前CAD参数源 / 可追溯文本输入。**
+
+它不是完整工程计算书，工程计算依据仍在计算主线和数字总账中。
 
 ---
 
-# 2. 为什么只让Skeleton链接外部参数
+# 2. 为什么参数层与零件层必须分离
 
-如果：
-
-```text
-BODY
-BALL
-BODY_COVER
-STEM_COVER
-BOTTOM_COVER
-ADAPTER
-...
-```
-
-全部独立链接同一个txt，后面很容易出现：
+推荐架构：
 
 ```text
-重建顺序
-外部引用循环
-文件路径丢失
-某零件局部变量改名
-不同配置互相覆盖
-```
-
-当前推荐：
-
-```text
+工程计算
+↓
+数字总账
+↓
 GlobalVariables.txt
 ↓
-00_SKELETON.SLDPRT
+00_SKELETON
 ↓
-主基准面 / 轴 / 主草图 / 包络曲面
-↓
-各零件In-context或派生引用
+BALL / SEAT / BODY / COVERS / STEM / ADAPTER
 ```
 
-这与本项目一直坚持的：
+不推荐所有零件各自长期直接依赖同一个外部txt，因为容易形成：
 
 ```text
-尺寸参数 + 装配关系 + 空间坐标
-→ Skeleton
-→ Parts
+重建顺序混乱
+外部引用循环
+路径丢失
+变量名漂移
+配置互相覆盖
 ```
 
-完全一致。
+后续零件优先通过统一语义基准、参数快照和构建器获取数据，而不是互相引用随机实体面。
 
 ---
 
-# 3. 当前外部txt已经包含哪些主变量
+# 3. 参数状态与SolidWorks权限
 
-## 3.1 X向总体
+允许当前CAD草模使用：
+
+```text
+A
+A-policy（按规则）
+B
+C+
+C
+明确批准的C-space / CAD envelope
+```
+
+禁止自动写死：
+
+```text
+D
+H
+H/R
+未关闭的R
+```
+
+必须长期区分：
+
+```text
+CAD_DRAFT
+≠ ENGINEERING_FREEZE
+≠ MANUFACTURING_FREEZE
+```
+
+例如：
+
+```text
+BALL_LOWER_BORE_DEPTH=52
+```
+
+当前只能解释为：
+
+```text
+S04 CAD候选
+```
+
+不能因为它已经写入 txt 就自动升级为制造冻结尺寸。
+
+---
+
+# 4. 当前核心X向参数
 
 ```text
 VALVE_F2F=610
+HALF_F2F=305
 X_END_FACE_L=-305
 X_END_FACE_R=+305
+
+X_END_FLANGE_BACK_L_CAD≈-273.2
+X_BODY_JOINT_REF_L=-232.5 仅内部参考，不是第二主分界
+BALL_X_L=-174
+X_CONTACT_L=-166.036
+BALL_CENTER=0
+X_CONTACT_R=+166.036
+BALL_X_R=+174
 X_BODY_JOINT_CAD=+232.5
+X_END_FLANGE_BACK_R_CAD≈+273.2
 ```
 
-端法兰：
+唯一主BODY分界只有：
 
 ```text
-OD=482.6
-BCD=431.8
-12×φ25.4
-RF OD=381
-法兰本体厚CAD=30.2
-RF高CAD=1.6
-法兰背面≈±273.2
+X_BODY_JOINT_CAD=+232.5
 ```
 
 ---
 
-# 4. 球体 / 阀座
+# 5. 当前BALL参数
 
 ```text
 BORE_D=303
@@ -127,407 +151,327 @@ BALL_OD=465
 BALL_R=232.5
 BALL_W_X=348
 BALL_X_L/R=±174
-X_CONTACT_L/R=±166.036
 ```
 
-阀座：
+S04当前CAD候选：
 
 ```text
-D9=323.88
-D10=327.13
-D11=342
-guide bore=342.4
-pilot2=323.6
-bore2=323.8
-spring PCD=362
-big OD=380
-big bore=382
-WSEAT_ENV=58
+BALL_UPPER_BORE_D=105
+BALL_UPPER_BORE_DEPTH=30
+BALL_LOWER_BORE_D=70
+BALL_LOWER_BORE_DEPTH=52
+BALL_DRIVE_SLOT_L_X=70
+BALL_DRIVE_SLOT_W_Y=44
+BALL_DRIVE_SLOT_R=8
+BALL_DRIVE_SLOT_DEPTH=27
 ```
+
+统一状态解释：
+
+```text
+φ105 / φ70接口径：当前结构主链 C/C+
+30 / 52深度：CAD候选 C-CAD
+70×44 / R8 / 深27驱动槽：CAD候选 C-CAD
+```
+
+它们允许 S04 建模和验证，但不自动成为球体制造图冻结值。
 
 ---
 
-# 5. BODY / BODY_COVER当前CAD主变量
+# 6. 阀座当前参数
 
 ```text
-当前显示球腔 = φ471
-当前中央承压外包络 = φ504
-主拆装口 = φ480
-BODY_COVER止口 = φ480
-止口长 =20
+SEAT_D9=323.88
+SEAT_D10=327.13
+SEAT_D11=342
+SEAT_GUIDE_BORE=342.4
+SEAT_PILOT_2=323.6
+SEAT_GUIDE_2=323.8
+SPRING_PCD=362
+SEAT_BIG_OD=380
+SEAT_BIG_BORE=382
+WSEAT_ENV=58
+```
+
+真实接触：
+
+```text
+X_CONTACT_L=-166.036
+X_CONTACT_R=+166.036
+```
+
+`WSEAT_ENV=58` 为当前空间包络，不等于内部所有轴向站位已经制造冻结。
+
+---
+
+# 7. BODY / BODY_COVER当前CAD参数
+
+```text
+BODY_CAVITY_D_FUNC_CAD=471
+BODY_OUTER_D_CENTRAL_CAD=504
+MAIN_OPENING_D=480
+MAIN_COVER_PILOT_D=480
+MAIN_COVER_PILOT_L_CAD=20
 ```
 
 主O圈：
 
 ```text
 φ466×7
+径向静密封
 槽深5.7
 槽宽9.5
 槽根φ468.6
 ```
 
-主垫片/中法兰：
+中法兰：
 
 ```text
-φ500×φ490×3.2
-BCD=526.5 CAD
-中法兰OD=562.5 CAD
-20×M20×85
+MID_GASKET=φ500×φ490×3.2
+MID_BCD_CAD=526.5
+MID_FLANGE_OD_CAD=562.5
+MID_STUD=20×M20×85
 ```
 
-主开口局部压力Boss：
+主开口局部Boss：
 
 ```text
-≈φ520 CAD
+MAIN_OPENING_BOSS_OD_CAD≈520
 ```
 
 ---
 
-# 6. Z向上支承 / 前盖
+# 8. Z向当前参数
+
+上主支承：
 
 ```text
-上球体轴承 = φ105×φ100×30
+UP_BRG=φ105×φ100×30
 Z=193.6~223.6
-中心=208.6
+CENTER=208.6
+Z_TOP_SHOULDER=226.9
+Z_BODY_TOP_IF_CAD=264.5
+TOP_PILOT_ENGAGEMENT_CAD=37.6
 ```
 
-前盖：
+下主支承：
 
 ```text
-φ100一体支承轴
-轴→Boss肩面 Z=226.9
-φ105定位Boss
-BODY安装面 Z=264.5
-Boss有效长≈37.6
-前盖法兰厚CAD≈35.5
-外侧粗参考Z≈300
-```
-
-主连接：
-
-```text
-4×M12×75
-```
-
----
-
-# 7. 阀杆 / 填料内轨
-
-```text
-主径φ65
-上键轴φ60
-防吹出肩φ74
-阀杆导向轴承φ70×φ65×50
-```
-
-密封/填料：
-
-```text
-阀杆O圈槽根φ73.8
-槽宽7
-双O圈中间功能区≈17.3
-填料φ75×φ65×5
-压后厚CAD≈4.4
-填料压紧面Z≈313.3
-```
-
----
-
-# 8. 下支承 / 底盖
-
-```text
-下轴承φ70×φ65×50
+LOWER_BRG=φ70×φ65×50
 Z=-227~-177
-中心=-202
+CENTER=-202
+Z_BOTTOM_SHOULDER=-230
+Z_BODY_BOTTOM_IF_CAD=-270.5
+BOTTOM_PILOT_ENGAGEMENT_CAD=40.5
 ```
 
-底盖：
+历史：
 
 ```text
-φ65一体支承轴
-轴→Boss肩面Z=-230
-φ70定位Boss
-BODY安装面Z=-270.5
-有效Boss长≈40.5
-底盖法兰厚CAD≈20
-外侧粗参考Z≈-289.1
-```
-
-密封：
-
-```text
-φ58×5.3 AED
-当前槽根φ61.6 C/R
-φ80×φ70×3.2垫片
-6×M12×55
++227作为BODY上安装面 → H/R
+-230作为BODY下安装面 → H/R
 ```
 
 ---
 
-# 9. F25连接盘 / 驱动链
+# 9. STEM / F25 当前参数
 
-当前：
+```text
+STEM_MAIN_D=65
+STEM_KEY_D=60
+STEM_SHOULDER_OD=74
+KEY=18×11×90
+```
+
+F25：
 
 ```text
 ADAPTER_OD_CAD=300
 ADAPTER_T_CAD=24
-Z_ADAPTER_BOTTOM=313.3
-Z_F25_INTERFACE=337.3
+Z_ADAPTER_BOTTOM_CAD=313.3
+Z_F25_INTERFACE_CAD=337.3
+F25_BOLT_PCD=254
+F25_BOLT_QTY=8
+F25_THREAD_D=16
+F25_CLEAR_HOLE_D=17.5
+F25_HOLE_START_ANGLE=22.5°
+F25_HOLE_STEP=45°
 ```
 
-ISO 5211 F25：
+键轴站位：
 
 ```text
-PCD254
-8×M16
-φ17.5通孔口径
-M16螺纹深度24级
-首孔22.5°
-孔间隔45°
-中心止口最大包络φ200
-```
-
-键轴：
-
-```text
-φ60
-18×11×90 C型键
-KEY_START≈339.8
-KEY_END≈429.8
-STEM_TOP_CAD≈430
+Z_KEY_START_CAD≈339.8
+Z_KEY_END_CAD≈429.8
+Z_STEM_TOP_CAD≈430
 ```
 
 ---
 
-# 10. 外部txt中的“可直接SolidWorks草模值”不等于制造冻结
+# 10. SolidWorks原生基准面——永久纠错
 
-把外部变量再分两层。
-
-## A层——结构主基准，优先稳定
+项目语义坐标：
 
 ```text
-F2F610
-端面±305
-球心O
-球体φ465
-流道φ303
-球宽348
-真实密封接触±166.036
-主BODY分界+232.5
-主拆装口φ480
-主中法兰垫片φ500/490
-20×M20
-上下轴承规格
-上下支承轴φ100/φ65
-上键轴φ60
-F25 PCD254 / 8×M16 / φ300最小接口
+O=(0,0,0)
+X=FLOW_AXIS
+Y=CROSS_AXIS
+Z=SUPPORT_AXIS
 ```
 
-这些变化会牵动全总装，除非新证据推翻，不随便改。
-
-## B层——当前CAD/Envelope值
+**禁止硬编码：**
 
 ```text
-球腔φ471
-BODY中央外径φ504
-主中法兰OD562.5
-主开口Bossφ520
-上安装面264.5
-下安装面-270.5
-上Boss长37.6
-下Boss长40.5
-连接盘厚24
-底O圈槽根61.6
-STEM_TOP=430
+Front=XZ
+Top=XY
+Right=YZ
 ```
 
-这些可以形成第一版3D，但制造冻结前可能回算。
+当前 S03 正确实现：
+
+```text
+读取原生RefPlane真实世界几何
+↓
+识别哪个平面是XY / XZ / YZ
+↓
+建立项目语义基准面
+```
+
+统一名称：
+
+```text
+PLN_BASE_XY_FLOW_CROSS
+PLN_BASE_XZ_FLOW_SUPPORT
+PLN_BASE_YZ_CROSS_SUPPORT
+AXIS_X_FLOW
+AXIS_Z_SUPPORT
+SK_PT_BALL_CENTER_O
+```
+
+这条规则已经由实际 S03 世界坐标回读验证，不再回退到依赖中文/英文原生平面名称的方法。
 
 ---
 
-# 11. 明确不进入外部txt的D变量
+# 11. EquationMgr当前实现注意项
 
-以下不能因为SolidWorks需要数值就乱填：
+这轮实机已经踩过并关闭：
+
+```text
+单配置新Part导入全局变量：使用适合当前场景的 Add2 路径
+角度参数：源文件可保留deg语义，导入时做SolidWorks可接受的角度规范化
+PowerShell COM对象：不在PowerShell边界强制绑定为SldWorks/ModelDoc2
+COM强类型转换：放到内嵌C#内部
+```
+
+原则：
+
+> PowerShell负责流程编排；SolidWorks COM强类型调用尽量封装在C#层。
+
+---
+
+# 12. 当前D门——不得因为CAD需要数值就乱填
 
 ```text
 T_DESIGN
-P_RATING_ALLOWED(T)
+P_RATING_ALLOWED
 2.00MPa最终项目合规口径
 BALL_BODY_CLR_RAD_FINAL
 BODY_FINAL_WALL
 X_BODY_JOINT_FINAL
-BODY/BODY_COVER最终止口长度与加工公差
-上下BODY安装面FINAL
-TOP_PILOT_FIT_FINAL
-BOTTOM_PILOT_FIT_FINAL
-底部AED O圈厂家最终槽
+BODY/BODY_COVER最终止口加工公差
+TOP/BOTTOM PILOT最终配合公差
 上/下盖最终BCD和OD
-316+PTFE轴承真实许用面压
-DEVLON最终完整牌号/热膨胀制造公差
-双键槽最终角度
-实际安装键数量
-STEM_KEYWAY_KT_FINAL
-ADAPTER_T_FINAL
+底部AED O圈厂家最终槽
+316+PTFE真实许用面压
+DEVLON最终完整牌号/热配合公差
+STEM_TOTAL_LEN_FINAL
 GEARBOX_SPIGOT_D_FINAL
 GEARBOX_INPUT_BORE_FINAL
 GEARBOX_KEYWAY_FINAL
-STEM_TOTAL_LEN_FINAL
-真实蜗轮箱总体尺寸
 ```
-
-它们继续留在Markdown设计账，不写问号进方程式文件。
 
 ---
 
-# 12. 明确禁止进入方程式的H/R旧值
+# 13. 当前H/R隔离表
 
 ```text
-左右各一只主阀盖
-X_BODY_COVER_IF_L/R镜像
-主中法兰M24×100×10
+左右两个主阀盖
+第二个主BODY joint
 主止口φ450
 φ466×7端面O圈
-BODY中央外径φ498.2作为当前默认
+端面槽φ463.5~φ482.5
 RF OD φ355.6
+BODY中央φ498.2作为当前默认
 +227作为BODY上安装面
 -230作为BODY下安装面
-F20作为ISO 5211标准接口
+Front=XZ / Top=XY / Right=YZ永久硬绑定
+F20作为当前ISO5211主接口
 双键默认50/50均载
 ```
 
-这些历史数字只为追溯，禁止重新进入当前模型。
+这些值只允许历史追溯，不得重新进入当前CAD主线。
 
 ---
 
-# 13. 第一次导入后必须核对的7个结果
+# 14. S03当前as-built结果
 
-链接txt并重建后，先不要画复杂实体，只看方程式结果：
+实机已经得到：
 
 ```text
-HALF_F2F =305
-X_END_FLANGE_BACK_R≈273.2
-X_END_FLANGE_BACK_L≈-273.2
-Z_ADAPTER_TOP=337.3
-Z_KEY_START=339.8
-Z_KEY_END=429.8
-ASM_Z_TOTAL≈719.1
+S00 PASS
+S01 PASS
+S02 PASS
+S03 PASS
 ```
 
-如果任何一项不对，先修外部方程式，不要继续建零件。
+Skeleton验证：
+
+```text
+11个X站位全部世界坐标回读PASS
+16个Z站位全部世界坐标回读PASS
+RefPlaneCount=33
+RefAxisCount=2
+ForceRebuild PASS
+Feature errors=0
+What's Wrong errors=0
+warnings=0
+00_SKELETON.SLDPRT published
+```
+
+所以当前 V42 已从“准备交给 SolidWorks”升级为：
+
+> **参数交付链已经由真实 SolidWorks 2025 自动执行验证通过。**
 
 ---
 
-# 14. 00_SKELETON建议第一版特征树
+# 15. 当前正式输出与下一步
 
-```text
-00_SKELETON.SLDPRT
-│
-├─ Origin = BALL_CENTER_O
-├─ Axis_X = FLOW_AXIS
-├─ Axis_Z = SUPPORT_AXIS
-│
-├─ PLN_X_END_L       X=-305
-├─ PLN_BALL_FACE_L   X=-174
-├─ PLN_BALL_CENTER   X=0
-├─ PLN_BALL_FACE_R   X=+174
-├─ PLN_BODY_JOINT    X=+232.5
-├─ PLN_X_END_R       X=+305
-│
-├─ PLN_UP_BRG_Z0     Z=193.6
-├─ PLN_UP_BRG_Z1     Z=223.6
-├─ PLN_TOP_SHOULDER  Z=226.9
-├─ PLN_BODY_TOP_IF   Z=264.5
-├─ PLN_PACK_PRESS    Z=313.3
-├─ PLN_F25           Z=337.3
-├─ PLN_KEY_START     Z=339.8
-├─ PLN_KEY_END       Z=429.8
-│
-├─ PLN_LOW_BRG_IN    Z=-177
-├─ PLN_LOW_BRG_OUT   Z=-227
-├─ PLN_BOTTOM_SHOULDER Z=-230
-├─ PLN_BODY_BOTTOM_IF  Z=-270.5
-│
-├─ SK_XZ_MAIN_SECTION
-├─ SK_XY_F25_PATTERN
-├─ SK_YZ_MAIN_JOINT
-│
-├─ ENV_BALL
-├─ ENV_SEAT_L
-├─ ENV_SEAT_R
-├─ ENV_BODY
-├─ ENV_BODY_COVER
-├─ ENV_TOP_SUPPORT
-├─ ENV_BOTTOM_SUPPORT
-└─ ENV_F25
-```
-
----
-
-# 15. 外部方程式文件不直接绑零件尺寸名
-
-V1文件现在主要定义：
-
-```text
-Global Variables
-```
-
-而不是写死：
-
-```text
-D1@Sketch7
-D2@Boss-Extrude14
-```
-
-原因：零件特征树还没创建，提前猜特征名反而会导致导入失败。
-
-正确顺序：
-
-```text
-先导入Global Variables
-↓
-建立Skeleton特征
-↓
-再让具体尺寸引用变量
-```
-
----
-
-# 16. 当前交付物
+参数源：
 
 ```text
 Q347F_12in_Class150_00_SKELETON_GlobalVariables_V1.txt
 ```
 
-用途：
+当前模型输出：
 
 ```text
-SOLIDWORKS 2025
-Tools → Equations
-→ Link to external file
+SolidWorks_AutoBuild_Q347F_12in/02_output/00_SKELETON.SLDPRT
 ```
 
-然后用本页第14节建立骨架树。
-
----
-
-# 17. 下一步 V43
-
-下一步直接把V42转换成“手工建骨架的点击顺序 + VBA宏输入规范”：
+下一步不再是“V43写VBA宏”，而是：
 
 ```text
-创建新零件00_SKELETON
+S04 BALL
 ↓
-导入GlobalVariables
+自动创建 01_BALL.SLDPRT
 ↓
-自动建X/Z基准面
+关键尺寸回读
 ↓
-自动建Axis
+Rebuild
 ↓
-自动建球体/主BODY/F25包络草图
+What's Wrong / Feature Error
 ↓
-保存
+保存与日志
 ```
 
-先生成只负责Skeleton的宏，不直接自动生成44个零件，确保第一根数字骨架稳定后再向下派生。
-
-> **V42一句话结论：到这里已经第一次从“设计计算文档”跨到“SolidWorks可直接读取的参数源”；后续修改设计优先改数字总账/外部变量，再由Skeleton统一重建。**
+**V42一句话结论**：当前工程数据已经成功穿过“数字总账 → 参数txt → S01解析 → S03 EquationMgr/几何构建 → Skeleton验证”，后续保持同一套状态隔离和验证规则继续 S04。
