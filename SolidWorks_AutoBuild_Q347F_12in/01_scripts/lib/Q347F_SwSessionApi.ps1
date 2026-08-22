@@ -23,6 +23,21 @@ namespace Q347F
 
     public static class SwSessionApi
     {
+        private static SwSession BuildSession(SldWorks app, string mode)
+        {
+            if (app == null) throw new InvalidOperationException("SOLIDWORKS application object is null.");
+            app.Visible = true;
+            return new SwSession
+            {
+                App = app,
+                Mode = mode,
+                Revision = app.RevisionNumber(),
+                ProcessId = app.GetProcessID(),
+                Visible = app.Visible,
+                LatestFileVersion = app.GetLatestSupportedFileVersion()
+            };
+        }
+
         public static SwSession ConnectOrStart()
         {
             object obj = null;
@@ -39,17 +54,25 @@ namespace Q347F
                 mode = "START_NEW";
             }
 
-            SldWorks app = (SldWorks)obj;
-            app.Visible = true;
-            return new SwSession
-            {
-                App = app,
-                Mode = mode,
-                Revision = app.RevisionNumber(),
-                ProcessId = app.GetProcessID(),
-                Visible = app.Visible,
-                LatestFileVersion = app.GetLatestSupportedFileVersion()
-            };
+            return BuildSession((SldWorks)obj, mode);
+        }
+
+        // Reference-model inspection must never attach to the user's existing SOLIDWORKS
+        // process. Pack and Go contains files with the same titles as documents that may
+        // already be open in the working session. OpenDoc6 then returns
+        // swFileWithSameTitleAlreadyOpen (65536). Start an isolated process instead.
+        public static SwSession StartNewIsolated()
+        {
+            Type t = Type.GetTypeFromProgID("SldWorks.Application", true);
+            object obj = Activator.CreateInstance(t);
+            return BuildSession((SldWorks)obj, "START_NEW_ISOLATED");
+        }
+
+        public static void ExitIsolated(SwSession session)
+        {
+            if (session == null || session.App == null) return;
+            if (!String.Equals(session.Mode, "START_NEW_ISOLATED", StringComparison.OrdinalIgnoreCase)) return;
+            try { session.App.ExitApp(); } catch { }
         }
 
         public static string GetDefaultPartTemplate(SwSession session)
