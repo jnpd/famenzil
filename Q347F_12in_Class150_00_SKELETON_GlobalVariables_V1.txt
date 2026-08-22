@@ -9,15 +9,16 @@
 "BALL_W_X" = 348mm
 "BALL_X_R" = "BALL_W_X" / 2
 "BALL_X_L" = -"BALL_W_X" / 2
-# S04 TEMP-FROZEN manufacturing dimensions: draw the complete BALL first, then replace by supplier/final drawing values if needed.
+# S04 current manufacturing dimensions for the 12in BALL.
+# Corrected to match the 20in mature topology scaled/derived for the 12in design baseline.
 "BALL_UPPER_BORE_D" = 105mm
-"BALL_UPPER_BORE_DEPTH" = 35mm
+"BALL_UPPER_BORE_DEPTH" = 30mm
 "BALL_LOWER_BORE_D" = 70mm
 "BALL_LOWER_BORE_DEPTH" = 52mm
 "BALL_DRIVE_SLOT_L_X" = 70mm
-"BALL_DRIVE_SLOT_W_Y" = 50mm
+"BALL_DRIVE_SLOT_W_Y" = 44mm
 "BALL_DRIVE_SLOT_R" = 8mm
-"BALL_DRIVE_SLOT_DEPTH" = 35mm
+"BALL_DRIVE_SLOT_DEPTH" = 27mm
 "X_CONTACT_R" = 166.036mm
 "X_CONTACT_L" = -166.036mm
 "X_BODY_JOINT_CAD" = 232.5mm
