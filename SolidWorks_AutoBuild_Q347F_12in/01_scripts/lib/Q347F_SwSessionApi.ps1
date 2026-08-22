@@ -25,7 +25,7 @@ namespace Q347F
     {
         private static SwSession BuildSession(SldWorks app, string mode)
         {
-            if (app == null) throw new InvalidOperationException("SOLIDWORKS application object is null.");
+            if (app == null) throw new System.InvalidOperationException("SOLIDWORKS application object is null.");
             app.Visible = true;
             return new SwSession
             {
@@ -40,16 +40,16 @@ namespace Q347F
 
         public static SwSession StartNewIsolated()
         {
-            Type t = Type.GetTypeFromProgID("SldWorks.Application", true);
-            object obj = Activator.CreateInstance(t);
+            System.Type t = System.Type.GetTypeFromProgID("SldWorks.Application", true);
+            object obj = System.Activator.CreateInstance(t);
             return BuildSession((SldWorks)obj, "START_NEW_ISOLATED");
         }
 
         public static SwSession ConnectOrStart()
         {
-            string forceIsolated = Environment.GetEnvironmentVariable("Q347F_FORCE_ISOLATED_SW");
-            if (String.Equals(forceIsolated, "1", StringComparison.OrdinalIgnoreCase) ||
-                String.Equals(forceIsolated, "true", StringComparison.OrdinalIgnoreCase))
+            string forceIsolated = System.Environment.GetEnvironmentVariable("Q347F_FORCE_ISOLATED_SW");
+            if (System.String.Equals(forceIsolated, "1", System.StringComparison.OrdinalIgnoreCase) ||
+                System.String.Equals(forceIsolated, "true", System.StringComparison.OrdinalIgnoreCase))
             {
                 return StartNewIsolated();
             }
@@ -63,8 +63,8 @@ namespace Q347F
             }
             catch
             {
-                Type t = Type.GetTypeFromProgID("SldWorks.Application", true);
-                obj = Activator.CreateInstance(t);
+                System.Type t = System.Type.GetTypeFromProgID("SldWorks.Application", true);
+                obj = System.Activator.CreateInstance(t);
                 mode = "START_NEW";
             }
 
@@ -74,23 +74,23 @@ namespace Q347F
         public static void ExitIsolated(SwSession session)
         {
             if (session == null || session.App == null) return;
-            if (!String.Equals(session.Mode, "START_NEW_ISOLATED", StringComparison.OrdinalIgnoreCase)) return;
+            if (!System.String.Equals(session.Mode, "START_NEW_ISOLATED", System.StringComparison.OrdinalIgnoreCase)) return;
             try { session.App.ExitApp(); } catch { }
         }
 
         public static string GetDefaultPartTemplate(SwSession session)
         {
             if (session == null || session.App == null)
-                throw new ArgumentNullException("session", "SOLIDWORKS session is null.");
+                throw new System.ArgumentNullException("session", "SOLIDWORKS session is null.");
             return session.App.GetUserPreferenceStringValue((int)swUserPreferenceStringValue_e.swDefaultTemplatePart);
         }
 
         public static object NewPart(SwSession session, string templatePath)
         {
             if (session == null || session.App == null)
-                throw new ArgumentNullException("session", "SOLIDWORKS session is null.");
+                throw new System.ArgumentNullException("session", "SOLIDWORKS session is null.");
             object doc = session.App.NewDocument(templatePath, 0, 0.0, 0.0);
-            if (doc == null) throw new InvalidOperationException("ISldWorks.NewDocument returned null.");
+            if (doc == null) throw new System.InvalidOperationException("ISldWorks.NewDocument returned null.");
             ModelDoc2 model = (ModelDoc2)doc;
             model.ShowFeatureErrorDialog = false;
             return doc;
@@ -98,10 +98,10 @@ namespace Q347F
 
         public static bool CloseDocumentByPath(SwSession session, string fullPath)
         {
-            if (session == null || session.App == null || String.IsNullOrWhiteSpace(fullPath)) return false;
+            if (session == null || session.App == null || System.String.IsNullOrWhiteSpace(fullPath)) return false;
 
             string target;
-            try { target = Path.GetFullPath(fullPath); }
+            try { target = System.IO.Path.GetFullPath(fullPath); }
             catch { target = fullPath; }
 
             ModelDoc2 doc = null;
@@ -116,11 +116,11 @@ namespace Q347F
                     {
                         string p = "";
                         try { p = cur.GetPathName(); } catch { }
-                        if (!String.IsNullOrWhiteSpace(p))
+                        if (!System.String.IsNullOrWhiteSpace(p))
                         {
                             string normalized;
-                            try { normalized = Path.GetFullPath(p); } catch { normalized = p; }
-                            if (String.Equals(normalized, target, StringComparison.OrdinalIgnoreCase))
+                            try { normalized = System.IO.Path.GetFullPath(p); } catch { normalized = p; }
+                            if (System.String.Equals(normalized, target, System.StringComparison.OrdinalIgnoreCase))
                             {
                                 doc = cur;
                                 break;
