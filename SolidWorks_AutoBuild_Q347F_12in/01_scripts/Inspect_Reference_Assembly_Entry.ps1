@@ -8,7 +8,7 @@ $ErrorActionPreference = 'Stop'
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $AutoRoot = Split-Path -Parent $ScriptDir
-$Inner = Join-Path $ScriptDir 'Inspect_Reference_Assembly.ps1'
+$Inner = Join-Path $ScriptDir 'Inspect_Reference_Assembly_V2.ps1'
 
 $SourcePath = [Environment]::ExpandEnvironmentVariables($SourcePath)
 if (-not (Test-Path -LiteralPath $SourcePath)) { throw "Source not found: $SourcePath" }
@@ -46,9 +46,6 @@ if (-not $rootAssembly) {
     $assemblies = @(Get-ChildItem -LiteralPath $scanRoot -Recurse -File -Filter '*.SLDASM')
     if ($assemblies.Count -eq 0) { throw "No .SLDASM files found under: $scanRoot" }
 
-    # Main Q347F assembly begins with 20Q347F-300LB but does not have a numeric
-    # subassembly suffix such as -05. If an original and a copied assembly coexist,
-    # shortest filename is treated as the canonical root.
     $familyRoots = @(
         $assemblies |
         Where-Object { $_.BaseName -match '^20Q347F-300LB(?!-\d)' } |
@@ -65,10 +62,6 @@ if (-not $rootAssembly) {
 
 Write-Host ("[A00][PASS] Root assembly selected: {0}" -f $rootAssembly) -ForegroundColor Green
 
-# The uploaded Pack and Go contains a second top-level copy. It is not part of the
-# manufacturing structure we want to reverse-engineer and can fail to open because its
-# references are stale. Because ZIP content was extracted into a disposable log folder,
-# safely hide only those extra top-level copies from the inner recursive scanner.
 if ($isExtractedZip) {
     $rootDir = Split-Path -Parent $rootAssembly
     $extraRoots = @(
@@ -85,5 +78,12 @@ if ($isExtractedZip) {
     }
 }
 
-& $Inner -SourcePath $rootAssembly -OutputDir $OutputDir
-exit $LASTEXITCODE
+try {
+    & $Inner -RootAssemblyPath $rootAssembly -OutputDir $OutputDir
+    Write-Host '[A99][PASS] Reference assembly inspector V2 finished.' -ForegroundColor Green
+    exit 0
+}
+catch {
+    Write-Host ("[A99][FAIL] {0}" -f $_.Exception.Message) -ForegroundColor Red
+    throw
+}
