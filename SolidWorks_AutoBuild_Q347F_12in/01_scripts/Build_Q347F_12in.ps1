@@ -9,7 +9,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$ScriptVersion = '0.1.0-S00-S03'
+$ScriptVersion = '0.1.1-S00-S03-config'
 $BuildName = 'Q347F 12in Class150 AUTO BUILD'
 $RequiredSwMajorRevision = 33   # SOLIDWORKS 2025
 $RunId = Get-Date -Format 'yyyyMMdd_HHmmss'
@@ -94,6 +94,7 @@ New-Item -ItemType Directory -Force -Path $OutputRoot, $BackupRoot, $LogsRoot, $
 
 # Shared runtime helpers and embedded SOLIDWORKS COM API layer.
 . (Join-Path $ScriptDir 'lib\Q347F_Common.ps1')
+. (Join-Path $ScriptDir 'lib\Q347F_Config.ps1')
 . (Join-Path $ScriptDir 'lib\Q347F_SwSessionApi.ps1')
 . (Join-Path $ScriptDir 'lib\Q347F_SwEquationApi.ps1')
 . (Join-Path $ScriptDir 'lib\Q347F_SwGeometryApi.ps1')
@@ -118,6 +119,7 @@ function Write-FinalSummary {
             connection = $script:SwConnectionMode
             revision = $script:SwRevision
             pid = $script:SwPid
+            exe = $script:SldworksExe
         }
         output = [ordered]@{
             skeleton = $SkeletonFinalPath
